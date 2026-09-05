@@ -1,0 +1,14 @@
+module tienda.pedido;
+use tienda.dinero as dinero;
+
+export class Pedido {
+  priv let mut total: decimal := 0.00dec;
+
+  pub fn this(inicial: decimal) {
+    this.total = inicial;
+  }
+
+  pub fn agregar(valor: decimal) -> void {
+    this.total = this.total + valor;
+  }
+}

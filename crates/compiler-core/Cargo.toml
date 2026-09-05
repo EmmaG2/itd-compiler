@@ -1,0 +1,13 @@
+[package]
+name = "compiler-core"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+rust_decimal = "1.37"
+
+[lints]
+workspace = true

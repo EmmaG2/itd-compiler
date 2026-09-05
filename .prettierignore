@@ -1,0 +1,12 @@
+# Ignore artifacts:
+build
+coverage
+node_modules
+.pnpm-store
+pnpm-lock.yaml
+.claude
+.agents
+/MIcompiladordejava
+/src
+/tests
+/Makefile

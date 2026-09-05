@@ -1,0 +1,3 @@
+let total: decimal := 1.25dec;
+total = 2.00dec;
+let mezcla := total + 0.1f64;

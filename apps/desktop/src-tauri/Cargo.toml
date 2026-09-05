@@ -1,0 +1,24 @@
+[package]
+name = "compiler-desktop"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+name = "compiler_desktop_lib"
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[[bin]]
+name = "compiler-desktop"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+compiler-core = { path = "../../../crates/compiler-core" }
+serde = { version = "1", features = ["derive"] }
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+
+[lints]
+workspace = true
