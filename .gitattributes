@@ -1,2 +1,2 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# Keep Prettier's LF output consistent on every runner.
+* text=auto eol=lf
