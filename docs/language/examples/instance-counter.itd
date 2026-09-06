@@ -1,0 +1,11 @@
+class Counter {
+    static let mut created: int := 0;
+    pub fn this() { Counter.created = Counter.created + 1; }
+    pub static fn count() -> int { return Counter.created; }
+}
+let first := Counter();
+let second := Counter();
+let alias := first;
+if first != second { print("Instancias distintas"); }
+if first == alias { print("Misma instancia"); }
+print(to_string(Counter.count()));

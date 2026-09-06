@@ -1,0 +1,17 @@
+trait Shape { fn area() -> decimal; }
+class Rectangle: Shape {
+    let mut width: decimal := 0dec;
+    let mut height: decimal := 0dec;
+    pub fn this(width: decimal, height: decimal) {
+        if width >= 0dec and height >= 0dec { this.width = width; this.height = height; }
+    }
+    pub fn area() -> decimal { return this.width * this.height; }
+}
+class Circle: Shape {
+    let mut radius: decimal := 0dec;
+    pub fn this(radius: decimal) { if radius >= 0dec { this.radius = radius; } }
+    pub fn area() -> decimal { return 3.14dec * this.radius * this.radius; }
+}
+fn show_area(shape: Shape) -> void { print(to_string(shape.area())); }
+show_area(Rectangle(3dec, 4dec));
+show_area(Circle(2dec));

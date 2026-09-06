@@ -9,7 +9,7 @@ use crate::{
     diagnostic::{Diagnostic, Severity},
     lexer::lex,
     parser::parse,
-    semantic::{ImportedSymbol, SemanticResult, analyze_with_imports},
+    semantic::{ImportedSymbol, SemanticResult, Type, analyze_with_imports},
     source::{SourceId, SourceMap, Span},
 };
 
@@ -224,9 +224,10 @@ impl Loader {
         if let Some(result) = &semantic {
             self.diagnostics.extend(result.diagnostics.clone());
         }
-        let exports = semantic
+        let mut exports = semantic
             .as_ref()
             .map_or_else(Vec::new, |semantic| exports(&parsed.program, semantic));
+        qualify_exports(&mut exports, &name);
         let dependencies = unique_uses
             .iter()
             .map(|declaration| declaration.path.join("."))
@@ -309,7 +310,7 @@ impl Loader {
                     |alias| format!("{alias}.{}", symbol.name),
                 ),
                 ty: symbol.ty.clone(),
-                declaration_span: declaration.span,
+                declaration_span: symbol.declaration_span,
                 class: symbol.class.clone(),
                 trait_info: symbol.trait_info.clone(),
             })
@@ -397,5 +398,63 @@ fn import_message(message: String, chain: &[String]) -> String {
         message
     } else {
         format!("{message} (cadena: {})", chain.join(" -> "))
+    }
+}
+
+fn qualify_type(ty: &mut Type, module: &str) {
+    match ty {
+        Type::Class(name) | Type::ClassObject(name) | Type::Trait(name) if !name.contains("::") => {
+            *name = format!("{module}::{name}")
+        }
+        Type::Function(parameters, result) => {
+            for ty in parameters {
+                qualify_type(ty, module);
+            }
+            qualify_type(result, module);
+        }
+        _ => {}
+    }
+}
+fn qualify_exports(exports: &mut [ImportedSymbol], module: &str) {
+    for symbol in exports {
+        qualify_type(&mut symbol.ty, module);
+        if let Some((name, class)) = &mut symbol.class {
+            *name = format!("{module}::{name}");
+            for member in class
+                .fields
+                .values_mut()
+                .chain(class.methods.values_mut())
+                .chain(class.constructor.iter_mut())
+            {
+                qualify_type(&mut member.ty, module);
+            }
+            for name in &mut class.traits {
+                if !name.contains("::") {
+                    *name = format!("{module}::{name}");
+                }
+            }
+        }
+        if let Some((name, info)) = &mut symbol.trait_info {
+            *name = format!("{module}::{name}");
+            for ty in info.methods.values_mut() {
+                qualify_type(ty, module);
+            }
+        }
+    }
+}
+
+impl Project {
+    #[must_use]
+    pub fn compile(&self, entry: &str) -> crate::CompilationResult {
+        crate::linker::compile(self.analyze(entry), entry)
+    }
+    #[must_use]
+    pub fn run(
+        &self,
+        entry: &str,
+        limits: crate::runtime::RuntimeLimits,
+        cancelled: Option<std::sync::Arc<std::sync::atomic::AtomicBool>>,
+    ) -> crate::RunResult {
+        crate::run_compiled(&self.compile(entry), limits, cancelled)
     }
 }
