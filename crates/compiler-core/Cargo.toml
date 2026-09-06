@@ -14,3 +14,7 @@ workspace = true
 
 [features]
 reference-interpreter = []
+
+[[example]]
+name = "benchmark"
+required-features = ["reference-interpreter"]

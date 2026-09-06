@@ -40,3 +40,9 @@ Los tokens pospuestos se reconocen para producir un error claro del parser. No i
 - [Programa válido](examples/valid.itd): debe superar lexer y, cuando existan, parser y análisis semántico.
 - [Errores léxicos](examples/invalid-lexical.itd): rechazado por el lexer.
 - [Errores semánticos](examples/invalid-semantic.itd): aceptado sintácticamente y rechazado por tipos/resolución.
+
+## Estado ejecutable
+
+Clases, composición, traits, funciones, recursión, ciclos `while`, módulos y decimales se compilan a bytecode real. La indexación solo se reconoce sintácticamente y se rechaza con `E2015`; no hay colecciones ni `each` ejecutable. Herencia, genéricos, async y compilación nativa siguen fuera de alcance.
+
+Consulta el [catálogo ejecutable](examples/README.md), el [contrato del bytecode](bytecode.md) y las [mediciones](performance.md). En la app, **Ampliar AST** abre el grafo en un modal de pantalla completa; Escape lo cierra y devuelve el foco. Controles, etiquetas y minimapa comparten el tema de la aplicación.

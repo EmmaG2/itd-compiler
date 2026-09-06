@@ -1,0 +1,11 @@
+module invoice;
+use product;
+export class Invoice {
+    let mut product: Product := Product(0dec);
+    let mut quantity: int := 0;
+    pub fn this(product: Product, quantity: int) {
+        this.product = product;
+        if quantity >= 0 { this.quantity = quantity; }
+    }
+    pub fn total() -> decimal { return this.product.amount() * this.quantity; }
+}

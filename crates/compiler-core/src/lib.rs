@@ -3,6 +3,7 @@ pub mod bytecode;
 mod bytecode_validate;
 pub mod diagnostic;
 pub mod lexer;
+mod linker;
 pub mod parser;
 pub mod project;
 #[cfg(feature = "reference-interpreter")]

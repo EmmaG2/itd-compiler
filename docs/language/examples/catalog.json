@@ -1,0 +1,52 @@
+[
+  {
+    "id": "expressions",
+    "title": "Expresiones y precedencia",
+    "description": "Operaciones encadenadas, multiplicación antes de suma y agrupación explícita."
+  },
+  {
+    "id": "factorial",
+    "title": "Factorial recursivo",
+    "description": "Caso base y llamadas recursivas; válido para entradas no negativas dentro del rango de int."
+  },
+  {
+    "id": "fibonacci",
+    "title": "Fibonacci iterativo",
+    "description": "Dos acumuladores evitan recalcular los términos anteriores."
+  },
+  {
+    "id": "gcd",
+    "title": "Máximo común divisor",
+    "description": "Algoritmo de Euclides con módulo; entradas no negativas."
+  },
+  {
+    "id": "primes",
+    "title": "Números primos",
+    "description": "Prueba divisores hasta la raíz sin multiplicar valores que puedan desbordar."
+  },
+  {
+    "id": "bank-account",
+    "title": "Cuenta bancaria",
+    "description": "Encapsulación y decimal exacto; las operaciones rechazadas conservan el saldo."
+  },
+  {
+    "id": "cart",
+    "title": "Carrito por composición",
+    "description": "Un carrito contiene dos productos; composición sin colecciones."
+  },
+  {
+    "id": "shapes",
+    "title": "Polimorfismo con traits",
+    "description": "Dos clases cumplen el mismo contrato. El círculo usa pi aproximado a 3.14."
+  },
+  {
+    "id": "inventory",
+    "title": "Inventario independiente",
+    "description": "Cada instancia conserva su stock; una venta inválida no modifica las existencias."
+  },
+  {
+    "id": "instance-counter",
+    "title": "Contador de instancias",
+    "description": "Estado estático compartido e identidad por referencia."
+  }
+]
