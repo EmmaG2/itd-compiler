@@ -223,8 +223,10 @@ fn literal_errors_remain_lazy_and_preserve_prior_output() {
 fn rejects_forged_allocation_sizes() {
     let a = analyze("1;");
     let chunk = compile(&a.program, a.semantic.as_ref().unwrap()).unwrap();
-    let mut forged = chunk.clone(); forged.globals = usize::MAX;
+    let mut forged = chunk.clone();
+    forged.globals = usize::MAX;
     assert_eq!(validate(&forged).unwrap_err().code, "E5002");
-    let mut forged = chunk; forged.functions[0].locals = usize::MAX;
+    let mut forged = chunk;
+    forged.functions[0].locals = usize::MAX;
     assert_eq!(validate(&forged).unwrap_err().code, "E5002");
 }

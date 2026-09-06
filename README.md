@@ -34,22 +34,22 @@ make dev
 
 Ejecuta todas las tareas mediante `make` desde la raíz del repositorio.
 
-| Comando | Acción |
-| --- | --- |
-| `make` / `make help` | Mostrar los comandos disponibles. |
-| `make install` | Instalar las dependencias del frontend respetando el lockfile. |
-| `make dev` / `make run` | Abrir la aplicación Tauri en desarrollo. |
-| `make web` | Servir el frontend en el navegador. |
-| `make build` | Compilar y empaquetar la aplicación Tauri. |
-| `make compile` | Comprobar tipos y compilar el frontend. |
-| `make test` | Ejecutar todas las pruebas del compilador y del frontend. |
-| `make test-core` | Probar el compilador y comparar la VM con el intérprete de referencia. |
-| `make test-ui` | Ejecutar las pruebas unitarias del frontend. |
-| `make benchmark` | Comparar el rendimiento de la VM y el intérprete de referencia. |
-| `make lint` | Ejecutar el análisis estático y la comprobación de tipos. |
-| `make format` | Aplicar el formato del proyecto. |
-| `make format-check` | Comprobar el formato sin modificar archivos. |
-| `make check` | Ejecutar formato, análisis estático, pruebas y compilación del frontend. |
+| Comando                 | Acción                                                                   |
+| ----------------------- | ------------------------------------------------------------------------ |
+| `make` / `make help`    | Mostrar los comandos disponibles.                                        |
+| `make install`          | Instalar las dependencias del frontend respetando el lockfile.           |
+| `make dev` / `make run` | Abrir la aplicación Tauri en desarrollo.                                 |
+| `make web`              | Servir el frontend en el navegador.                                      |
+| `make build`            | Compilar y empaquetar la aplicación Tauri.                               |
+| `make compile`          | Comprobar tipos y compilar el frontend.                                  |
+| `make test`             | Ejecutar todas las pruebas del compilador y del frontend.                |
+| `make test-core`        | Probar el compilador y comparar la VM con el intérprete de referencia.   |
+| `make test-ui`          | Ejecutar las pruebas unitarias del frontend.                             |
+| `make benchmark`        | Comparar el rendimiento de la VM y el intérprete de referencia.          |
+| `make lint`             | Ejecutar el análisis estático y la comprobación de tipos.                |
+| `make format`           | Aplicar el formato del proyecto.                                         |
+| `make format-check`     | Comprobar el formato sin modificar archivos.                             |
+| `make check`            | Ejecutar formato, análisis estático, pruebas y compilación del frontend. |
 
 Antes de publicar cambios, ejecuta:
 

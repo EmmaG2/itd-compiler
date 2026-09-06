@@ -12,8 +12,14 @@ pub fn validate(chunk: &Chunk) -> Result<(), Diagnostic> {
     if chunk.functions.is_empty() {
         return Err(invalid(fallback));
     }
-    let instruction_count = chunk.functions.iter().try_fold(0usize, |count, f| count.checked_add(f.code.len())).ok_or_else(|| invalid(fallback))?;
-    if chunk.globals > instruction_count { return Err(invalid(fallback)); }
+    let instruction_count = chunk
+        .functions
+        .iter()
+        .try_fold(0usize, |count, f| count.checked_add(f.code.len()))
+        .ok_or_else(|| invalid(fallback))?;
+    if chunk.globals > instruction_count {
+        return Err(invalid(fallback));
+    }
     for constant in &chunk.constants {
         match constant {
             Value::Function(id) if *id < chunk.functions.len() => {}
@@ -32,7 +38,9 @@ pub fn validate(chunk: &Chunk) -> Result<(), Diagnostic> {
         }
     }
     for (id, class) in chunk.classes.iter().enumerate() {
-        if class.fields > instruction_count || class.statics > instruction_count { return Err(invalid(fallback)); }
+        if class.fields > instruction_count || class.statics > instruction_count {
+            return Err(invalid(fallback));
+        }
         if !chunk
             .functions
             .get(class.constructor)

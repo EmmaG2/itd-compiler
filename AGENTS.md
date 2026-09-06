@@ -120,7 +120,7 @@ Ejecuta las tareas desde la raíz y con el entorno definido en `shell.nix` activ
 | `make test`             | Ejecutar pruebas de todo el workspace Rust con todas las funciones opcionales y del frontend. |
 | `make test-core`        | Probar el compilador, incluida la comparación con el intérprete de referencia.                |
 | `make test-ui`          | Ejecutar las pruebas unitarias del frontend.                                                  |
-| `make benchmark`        | Comparar el rendimiento de la VM y el intérprete de referencia.                              |
+| `make benchmark`        | Comparar el rendimiento de la VM y el intérprete de referencia.                               |
 | `make lint`             | Ejecutar el análisis estático de Rust y comprobar los tipos del frontend.                     |
 | `make format`           | Aplicar formato a Rust y a los archivos cubiertos por el formateador del frontend.            |
 | `make format-check`     | Comprobar el formato sin modificar archivos.                                                  |
