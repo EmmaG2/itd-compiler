@@ -8,17 +8,17 @@ Convertir el lenguaje de intérprete de AST a compilador de bytecode con una má
 
 - [x] Definir un conjunto mínimo de instrucciones documentado.
 - [x] Crear chunks con bytecode, constantes y mapa de spans.
-- [ ] Compilar literales, variables, operadores y asignaciones.
-- [ ] Compilar saltos condicionales, ciclos y control de flujo.
-- [ ] Compilar funciones, llamadas y retornos.
-- [ ] Compilar acceso a módulos y globals.
-- [ ] Compilar construcción de objetos, campos y métodos.
-- [ ] Emitir instrucciones específicas o llamadas internas seguras para decimales.
+- [x] Compilar literales, variables, operadores y asignaciones.
+- [x] Compilar saltos condicionales, ciclos y control de flujo.
+- [x] Compilar funciones, llamadas y retornos.
+- [x] Compilar acceso a módulos y globals.
+- [x] Compilar construcción de objetos, campos y métodos.
+- [x] Emitir instrucciones específicas o llamadas internas seguras para decimales.
 - [x] Validar límites de operandos y terminación al generar bytecode.
 
 ## Tareas de la VM
 
-- [ ] Implementar stack de operandos y call frames.
+- [x] Implementar stack de operandos y call frames.
 - [x] Implementar tabla de globals y almacenamiento de objetos.
 - [x] Mantener un heap acotado por ejecución.
 - [x] Ejecutar aritmética checked y conservar tipos en runtime.
@@ -29,15 +29,15 @@ Convertir el lenguaje de intérprete de AST a compilador de bytecode con una má
 
 ## Estrategia de transición
 
-Conservar temporalmente el intérprete de AST como referencia. Ejecutar los mismos fixtures en ambos runtimes y eliminar el intérprete únicamente cuando los resultados y diagnósticos relevantes coincidan.
+Conservar el intérprete de AST como referencia detrás de la feature `reference-interpreter`, desactivada por defecto. Ejecutar los mismos fixtures en ambos runtimes y eliminar el intérprete únicamente cuando los resultados y diagnósticos relevantes coincidan.
 
 ## Pruebas mínimas
 
-- [ ] Cada familia de instrucciones tiene al menos un programa que la ejecuta.
+- [x] Cada familia de instrucciones tiene al menos un programa que la ejecuta.
 - [x] Bytecode malformado se rechaza de manera segura.
 - [x] Recursión excesiva e iteración infinita alcanzan un límite controlado.
 - [x] Stack trace conserva funciones y spans resolubles a archivo y línea.
-- [ ] Funciones, módulos, objetos y decimales producen los mismos resultados que el intérprete de referencia.
+- [x] Funciones, módulos, objetos y decimales producen los mismos resultados que el intérprete de referencia.
 - [x] Cancelar una ejecución libera sus recursos.
 
 ## PRs sugeridos
