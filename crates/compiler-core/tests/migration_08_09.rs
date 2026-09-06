@@ -6,11 +6,10 @@ use std::{
 
 use compiler_core::{
     analyze,
-    bytecode::{Chunk, Instruction},
+    bytecode::Instruction,
     project::analyze_project,
     run, run_with_options,
-    runtime::{RuntimeLimits, execute_chunk, execute_reference},
-    source::{SourceId, Span},
+    runtime::{RuntimeLimits, execute_chunk},
 };
 
 #[test]
@@ -36,12 +35,15 @@ fn executes_objects_methods_static_members_and_traits() {
     let result = run(source);
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
     assert_eq!(result.output, "different\n2\n15\n2\n");
-    let analysis = analyze(source);
-    let reference = execute_reference(
-        &analysis.program,
-        analysis.semantic.as_ref().expect("semantic result"),
-    );
-    assert_eq!(result.output, reference.output);
+    #[cfg(feature = "reference-interpreter")]
+    {
+        let analysis = analyze(source);
+        let reference = compiler_core::runtime::execute_reference(
+            &analysis.program,
+            analysis.semantic.as_ref().expect("semantic result"),
+        );
+        assert_eq!(result.output, reference.output);
+    }
 }
 
 #[test]
@@ -83,17 +85,16 @@ fn resolves_exported_classes_and_traits_between_modules() {
 fn rejects_bad_bytecode_and_stops_at_limits() {
     let analysis = analyze("while true {}");
     let semantic = analysis.semantic.as_ref().expect("semantic result");
-    let malformed = Chunk {
-        code: vec![Instruction::Execute(1)],
-        constants: Vec::new(),
-        spans: vec![Span::new(SourceId(0), 0, 0)],
-    };
+    let mut malformed =
+        compiler_core::bytecode::compile(&analysis.program, semantic).expect("compile");
+    malformed.functions[0].code[0] = Instruction::Constant(usize::MAX);
     assert_eq!(
         execute_chunk(&malformed, semantic, RuntimeLimits::default(), None).diagnostics[0].code,
         "E5002"
     );
 
-    let chunk = compiler_core::bytecode::compile(&analysis.program).expect("compile bytecode");
+    let chunk =
+        compiler_core::bytecode::compile(&analysis.program, semantic).expect("compile bytecode");
     let limits = RuntimeLimits {
         instructions: 20,
         ..RuntimeLimits::default()

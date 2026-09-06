@@ -1,19 +1,22 @@
 pub mod ast;
 pub mod bytecode;
+mod bytecode_validate;
 pub mod diagnostic;
 pub mod lexer;
 pub mod parser;
 pub mod project;
+#[cfg(feature = "reference-interpreter")]
+mod reference;
 pub mod runtime;
 pub mod semantic;
 pub mod source;
+mod vm;
 
 use ast::Program;
 use bytecode::compile;
 use diagnostic::{Diagnostic, Severity};
 use lexer::{Token, lex};
 use parser::parse;
-use runtime::execute_chunk;
 use semantic::{SemanticResult, analyze as analyze_semantics};
 use source::SourceMap;
 use std::sync::{Arc, atomic::AtomicBool};
@@ -55,6 +58,66 @@ pub fn analyze(source: &str) -> AnalysisResult {
     }
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub struct CompilationResult {
+    pub sources: SourceMap,
+    pub chunk: Option<bytecode::Chunk>,
+    pub diagnostics: Vec<Diagnostic>,
+}
+
+#[must_use]
+pub fn compile_source(source: &str) -> CompilationResult {
+    compile_analysis(analyze(source))
+}
+
+#[must_use]
+pub fn compile_analysis(analysis: AnalysisResult) -> CompilationResult {
+    let mut diagnostics = analysis.diagnostics;
+    let chunk = if diagnostics.iter().any(|d| d.severity == Severity::Error) {
+        None
+    } else if let Some(semantic) = analysis.semantic.as_ref() {
+        match compile(&analysis.program, semantic) {
+            Ok(chunk) => Some(chunk),
+            Err(diagnostic) => {
+                diagnostics.push(diagnostic);
+                None
+            }
+        }
+    } else {
+        None
+    };
+    CompilationResult {
+        sources: analysis.sources,
+        chunk,
+        diagnostics,
+    }
+}
+
+#[must_use]
+pub fn run_compiled(
+    compilation: &CompilationResult,
+    limits: runtime::RuntimeLimits,
+    cancelled: Option<Arc<AtomicBool>>,
+) -> RunResult {
+    let mut diagnostics = compilation.diagnostics.clone();
+    let Some(chunk) = compilation
+        .chunk
+        .as_ref()
+        .filter(|_| !diagnostics.iter().any(|d| d.severity == Severity::Error))
+    else {
+        return RunResult {
+            output: String::new(),
+            diagnostics,
+        };
+    };
+    let result = vm::execute(chunk, limits, cancelled);
+    diagnostics.extend(result.diagnostics);
+    RunResult {
+        output: result.output,
+        diagnostics,
+    }
+}
+
 #[must_use]
 pub fn run(source: &str) -> RunResult {
     run_with_options(source, runtime::RuntimeLimits::default(), None)
@@ -66,37 +129,5 @@ pub fn run_with_options(
     limits: runtime::RuntimeLimits,
     cancelled: Option<Arc<AtomicBool>>,
 ) -> RunResult {
-    let analysis = analyze(source);
-    if analysis
-        .diagnostics
-        .iter()
-        .any(|diagnostic| diagnostic.severity == Severity::Error)
-    {
-        return RunResult {
-            output: String::new(),
-            diagnostics: analysis.diagnostics,
-        };
-    }
-    let Some(semantic) = analysis.semantic.as_ref() else {
-        return RunResult {
-            output: String::new(),
-            diagnostics: analysis.diagnostics,
-        };
-    };
-    let chunk = match compile(&analysis.program) {
-        Ok(chunk) => chunk,
-        Err(diagnostic) => {
-            return RunResult {
-                output: String::new(),
-                diagnostics: vec![diagnostic],
-            };
-        }
-    };
-    let runtime = execute_chunk(&chunk, semantic, limits, cancelled);
-    let mut diagnostics = analysis.diagnostics;
-    diagnostics.extend(runtime.diagnostics);
-    RunResult {
-        output: runtime.output,
-        diagnostics,
-    }
+    run_compiled(&compile_source(source), limits, cancelled)
 }

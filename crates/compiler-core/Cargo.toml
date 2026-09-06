@@ -11,3 +11,6 @@ rust_decimal = "1.37"
 
 [lints]
 workspace = true
+
+[features]
+reference-interpreter = []
