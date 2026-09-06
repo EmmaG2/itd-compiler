@@ -1,0 +1,11 @@
+fn gcd(a: int, b: int) -> int {
+    let mut x := a;
+    let mut y := b;
+    while y != 0 {
+        let remainder := x % y;
+        x = y;
+        y = remainder;
+    }
+    return x;
+}
+print(to_string(gcd(48, 18)));

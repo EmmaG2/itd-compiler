@@ -5,3 +5,7 @@ Cada archivo `.itd` es un módulo. `module tienda.pagos;` debe coincidir con su 
 `from` queda reservado y no forma parte de la sintaxis 0.1; `use` cubre los imports del MVP.
 
 La resolución es estática, relativa a una única raíz canonizada. Una ruta que salga de esa raíz es error. En 0.1 no hay paquetes remotos, imports con comodín ni ciclos entre módulos.
+
+Los proyectos ya se ejecutan: cada dependencia se inicializa una sola vez antes de su importador. El enlace asigna nombres internos calificados por módulo a globals, funciones, clases y traits, conservando sus ubicaciones originales y el acceso público verificado por módulo. Dos módulos pueden declarar clases privadas o exportadas homónimas; los alias permiten distinguir los exports.
+
+La app separa **Analizar proyecto** de **Ejecutar proyecto**. La segunda acción devuelve salida, diagnósticos y bytecode, y se puede cancelar con **Detener**.

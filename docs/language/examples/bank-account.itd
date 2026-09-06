@@ -1,0 +1,22 @@
+class BankAccount {
+    let mut balance: decimal := 0dec;
+    pub fn this(initial: decimal) {
+        if initial >= 0dec { this.balance = initial; }
+    }
+    pub fn deposit(amount: decimal) -> bool {
+        if amount <= 0dec { return false; }
+        this.balance = this.balance + amount;
+        return true;
+    }
+    pub fn withdraw(amount: decimal) -> bool {
+        if amount <= 0dec or amount > this.balance { return false; }
+        this.balance = this.balance - amount;
+        return true;
+    }
+    pub fn current_balance() -> decimal { return this.balance; }
+}
+let account := BankAccount(100dec);
+account.deposit(40dec);
+account.withdraw(25dec);
+if not account.withdraw(200dec) { print("Retiro rechazado"); }
+print(to_string(account.current_balance()));

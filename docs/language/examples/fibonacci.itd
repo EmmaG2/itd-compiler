@@ -1,0 +1,13 @@
+fn fibonacci(n: int) -> int {
+    let mut previous := 0;
+    let mut current := 1;
+    let mut index := 0;
+    while index < n {
+        let next := previous + current;
+        previous = current;
+        current = next;
+        index = index + 1;
+    }
+    return previous;
+}
+print(to_string(fibonacci(10)));
