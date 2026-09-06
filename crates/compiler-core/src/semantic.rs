@@ -19,6 +19,7 @@ pub enum Type {
     Int,
     Long,
     Decimal,
+    IntegerOrDecimal,
     Float,
     Double,
     Bool,
@@ -125,7 +126,7 @@ pub fn analyze_with_imports(program: &Program, imports: &[ImportedSymbol]) -> Se
     for (name, parameters, result) in [
         ("round", vec![Type::Decimal, Type::Int], Type::Decimal),
         ("scale", vec![Type::Decimal], Type::Int),
-        ("to_string", vec![Type::Decimal], Type::Str),
+        ("to_string", vec![Type::IntegerOrDecimal], Type::Str),
     ] {
         analyzer.declare(
             name,
@@ -472,7 +473,13 @@ impl Analyzer {
         self.statement(&method.function.body);
         self.expected_return = previous;
         self.scopes.pop();
-        if method.function.return_type.is_some() && !always_returns(&method.function.body) {
+        if method
+            .function
+            .return_type
+            .as_ref()
+            .is_some_and(|ty| ty.name != "void")
+            && !always_returns(&method.function.body)
+        {
             self.type_error(
                 "E2009",
                 "no todas las rutas retornan un valor",
@@ -755,6 +762,11 @@ impl Analyzer {
             ExprKind::Index { object, index } => {
                 self.expression(object);
                 self.expression(index);
+                self.type_error(
+                    "E2015",
+                    "la indexación todavía no está disponible",
+                    expression.span,
+                );
                 Type::Error
             }
         };
@@ -1065,6 +1077,9 @@ impl Analyzer {
     fn assignable(&mut self, expected: &Type, found: &Type, expression: ExprId) -> bool {
         if expected == found || *expected == Type::Error || *found == Type::Error {
             return true;
+        }
+        if *expected == Type::IntegerOrDecimal {
+            return integer_rank(found).is_some() || *found == Type::Decimal;
         }
         if integer_rank(found)
             .is_some_and(|from| integer_rank(expected).is_some_and(|to| from <= to))
