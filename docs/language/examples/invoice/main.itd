@@ -1,0 +1,5 @@
+module main;
+use product as catalog;
+use invoice;
+let order := Invoice(catalog.Product(12.75dec), 2);
+print(to_string(order.total()));

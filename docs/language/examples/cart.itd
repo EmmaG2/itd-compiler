@@ -1,0 +1,16 @@
+class Product {
+    let mut price: decimal := 0dec;
+    pub fn this(price: decimal) { if price >= 0dec { this.price = price; } }
+    pub fn amount() -> decimal { return this.price; }
+}
+class Cart {
+    let mut first: Product := Product(0dec);
+    let mut second: Product := Product(0dec);
+    pub fn this(first: Product, second: Product) {
+        this.first = first;
+        this.second = second;
+    }
+    pub fn total() -> decimal { return this.first.amount() + this.second.amount(); }
+}
+let cart := Cart(Product(12.50dec), Product(7.25dec));
+print(to_string(cart.total()));

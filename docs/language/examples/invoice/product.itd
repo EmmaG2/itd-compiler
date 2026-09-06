@@ -1,0 +1,6 @@
+module product;
+export class Product {
+    let mut price: decimal := 0dec;
+    pub fn this(price: decimal) { if price >= 0dec { this.price = price; } }
+    pub fn amount() -> decimal { return this.price; }
+}

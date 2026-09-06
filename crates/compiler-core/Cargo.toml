@@ -11,3 +11,10 @@ rust_decimal = "1.37"
 
 [lints]
 workspace = true
+
+[features]
+reference-interpreter = []
+
+[[example]]
+name = "benchmark"
+required-features = ["reference-interpreter"]

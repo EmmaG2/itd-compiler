@@ -1,0 +1,14 @@
+fn is_prime(n: int) -> bool {
+    if n < 2 { return false; }
+    let mut divisor := 2;
+    while divisor <= n / divisor {
+        if n % divisor == 0 { return false; }
+        divisor = divisor + 1;
+    }
+    return true;
+}
+let mut n := 2;
+while n <= 30 {
+    if is_prime(n) { print(to_string(n)); }
+    n = n + 1;
+}
