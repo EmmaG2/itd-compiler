@@ -4,7 +4,8 @@ pkgs.mkShellNoCC {
   packages = (with pkgs; [
     cargo
     clippy
-    nodejs_22
+    gnumake
+    nodejs_24
     pnpm
     pkg-config
     rustc
