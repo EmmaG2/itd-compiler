@@ -116,6 +116,7 @@ Ejecuta las tareas desde la raíz y con el entorno definido en `shell.nix` activ
 | `make dev` / `make run` | Abrir la aplicación Tauri en desarrollo.                                                      |
 | `make web`              | Servir el frontend con Vite para acceder desde el navegador.                                  |
 | `make build`            | Compilar y empaquetar la aplicación Tauri.                                                    |
+| `make macos`            | Generar el instalador DMG para macOS.                                                         |
 | `make windows`          | Generar el instalador NSIS (`.exe`) para Windows x64; se ejecuta en Windows.                  |
 | `make compile`          | Comprobar tipos y compilar el frontend.                                                       |
 | `make test`             | Ejecutar pruebas de todo el workspace Rust con todas las funciones opcionales y del frontend. |

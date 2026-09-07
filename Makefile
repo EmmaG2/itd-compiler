@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install dev run web build windows compile test test-core test-ui benchmark lint format format-check check
+.PHONY: help install dev run web build macos windows compile test test-core test-ui benchmark lint format format-check check
 
 help:
 	@printf '%s\n' \
@@ -8,6 +8,7 @@ help:
 	  'make dev / run     Abre la aplicación Tauri en desarrollo' \
 	  'make web           Inicia Vite en el navegador' \
 	  'make build         Compila y empaqueta la aplicación Tauri' \
+	  'make macos         Genera el instalador DMG para macOS' \
 	  'make windows       Genera el instalador NSIS (.exe) para Windows x64' \
 	  'make compile       Comprueba tipos y compila el frontend' \
 	  'make test          Ejecuta las pruebas de Rust y frontend' \
@@ -30,6 +31,9 @@ web:
 
 build:
 	pnpm tauri build
+
+macos:
+	pnpm tauri build --bundles dmg
 
 windows:
 	pnpm tauri build --target x86_64-pc-windows-msvc --bundles nsis

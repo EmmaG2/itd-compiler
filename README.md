@@ -41,6 +41,7 @@ Ejecuta todas las tareas mediante `make` desde la raíz del repositorio.
 | `make dev` / `make run` | Abrir la aplicación Tauri en desarrollo.                                    |
 | `make web`              | Servir el frontend en el navegador.                                         |
 | `make build`            | Compilar y empaquetar la aplicación Tauri.                                  |
+| `make macos`            | Generar el instalador DMG para macOS.                                       |
 | `make windows`          | Generar el instalador NSIS (`.exe`) para Windows x64; ejecútalo en Windows. |
 | `make compile`          | Comprobar tipos y compilar el frontend.                                     |
 | `make test`             | Ejecutar todas las pruebas del compilador y del frontend.                   |
@@ -61,6 +62,8 @@ make check
 ## Instalador de Windows
 
 Para generar el ejecutable desde cualquier sistema, abre **Actions**, ejecuta el flujo **Windows installer** y descarga el artefacto `itd-compiler-windows-x64`. El flujo usa un runner Windows y ejecuta `make windows`; el resultado es el instalador NSIS `.exe`.
+
+En macOS, ejecuta `make macos`. El instalador quedará en `target/release/bundle/dmg/`.
 
 Los ejemplos de sintaxis están en [`docs/language/examples`](docs/language/examples). Los límites y el modelo de seguridad están en [`docs/security.md`](docs/security.md).
 
