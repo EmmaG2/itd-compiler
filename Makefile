@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install dev run web build compile test test-core test-ui benchmark lint format format-check check
+.PHONY: help install dev run web build windows compile test test-core test-ui benchmark lint format format-check check
 
 help:
 	@printf '%s\n' \
@@ -8,6 +8,7 @@ help:
 	  'make dev / run     Abre la aplicación Tauri en desarrollo' \
 	  'make web           Inicia Vite en el navegador' \
 	  'make build         Compila y empaqueta la aplicación Tauri' \
+	  'make windows       Genera el instalador NSIS (.exe) para Windows x64' \
 	  'make compile       Comprueba tipos y compila el frontend' \
 	  'make test          Ejecuta las pruebas de Rust y frontend' \
 	  'make test-core     Prueba el compilador y el intérprete de referencia' \
@@ -29,6 +30,9 @@ web:
 
 build:
 	pnpm tauri build
+
+windows:
+	pnpm tauri build --target x86_64-pc-windows-msvc --bundles nsis
 
 compile:
 	pnpm build
