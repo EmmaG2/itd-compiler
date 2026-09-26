@@ -15,6 +15,7 @@ use compiler_core::{
     project::{Project, ProjectAnalysis},
     run_compiled,
     runtime::RuntimeLimits,
+    semantic::SemanticResult,
     source::{SourceMap, Span},
 };
 use serde::Serialize;
@@ -86,6 +87,22 @@ struct AstNodeDto {
     kind: String,
     label: String,
     location: Option<LocationDto>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    semantic: Option<SemanticNodeDto>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SemanticNodeDto {
+    inferred_type: Option<String>,
+    source_type: Option<String>,
+    symbol: Option<ResolvedSymbolDto>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct ResolvedSymbolDto {
+    id: usize,
+    name: String,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -93,6 +110,7 @@ struct AstNodeDto {
 struct AstGraphDto {
     nodes: Vec<AstNodeDto>,
     truncated: bool,
+    partial: bool,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -102,6 +120,7 @@ struct AnalysisDto {
     tokens: Vec<TokenDto>,
     symbols: Vec<SymbolDto>,
     ast: AstGraphDto,
+    semantic_ast: Option<AstGraphDto>,
     bytecode: BytecodeDto,
 }
 
@@ -293,6 +312,14 @@ fn analysis_dto(mut result: AnalysisResult, virtual_path: &str) -> AnalysisDto {
         })
         .collect();
     let ast = ast_dto(&result.program, &result.sources, virtual_path);
+    let semantic_ast = result.semantic.as_ref().map(|semantic| {
+        build_ast_graph(
+            &result.program,
+            &result.sources,
+            virtual_path,
+            Some(semantic),
+        )
+    });
     let symbols = result.semantic.map_or_else(Vec::new, |semantic| {
         semantic
             .symbols
@@ -310,6 +337,7 @@ fn analysis_dto(mut result: AnalysisResult, virtual_path: &str) -> AnalysisDto {
         tokens,
         symbols,
         ast,
+        semantic_ast,
         bytecode,
     }
 }
@@ -319,6 +347,7 @@ struct AstBuilder<'a> {
     sources: &'a SourceMap,
     fallback: &'a str,
     truncated: bool,
+    semantic: Option<&'a SemanticResult>,
 }
 
 impl<'a> AstBuilder<'a> {
@@ -342,6 +371,7 @@ impl<'a> AstBuilder<'a> {
             kind: kind.to_owned(),
             label: label.chars().take(128).collect(),
             location: span.map(|value| location(self.sources, value, self.fallback)),
+            semantic: None,
         });
         Some(id)
     }
@@ -618,6 +648,57 @@ impl<'a> AstBuilder<'a> {
         }
     }
     fn expr(&mut self, parent: &str, relation: &str, value: &Expr) {
+        let metadata = self.semantic.map(|semantic| SemanticNodeDto {
+            inferred_type: semantic.types.get(&value.id).map(|ty| format!("{ty:?}")),
+            source_type: None,
+            symbol: semantic.resolutions.get(&value.id).and_then(|id| {
+                semantic.symbols.get(id.0).map(|symbol| ResolvedSymbolDto {
+                    id: symbol.id.0,
+                    name: symbol.name.clone(),
+                })
+            }),
+        });
+        let conversion = self
+            .semantic
+            .and_then(|semantic| semantic.coercions.get(&value.id));
+        let conversion_parent = if let Some(target) = conversion {
+            let index = self.nodes.len();
+            let Some(id) = self.push(
+                Some(parent),
+                Some(relation),
+                "Coercion",
+                format!("→ {target:?}"),
+                Some(value.span),
+            ) else {
+                return;
+            };
+            self.nodes[index].semantic = Some(SemanticNodeDto {
+                inferred_type: Some(format!("{target:?}")),
+                source_type: metadata
+                    .as_ref()
+                    .and_then(|data| data.inferred_type.clone()),
+                symbol: None,
+            });
+            Some(id)
+        } else {
+            None
+        };
+        let index = self.nodes.len();
+        self.expr_node(
+            conversion_parent.as_deref().unwrap_or(parent),
+            if conversion_parent.is_some() {
+                "operand"
+            } else {
+                relation
+            },
+            value,
+        );
+        if let Some(node) = self.nodes.get_mut(index) {
+            node.semantic = metadata;
+        }
+    }
+
+    fn expr_node(&mut self, parent: &str, relation: &str, value: &Expr) {
         match &value.kind {
             ExprKind::Literal(literal) => {
                 self.push(
@@ -739,16 +820,32 @@ impl<'a> AstBuilder<'a> {
 }
 
 fn ast_dto(program: &Program, sources: &SourceMap, fallback: &str) -> AstGraphDto {
+    build_ast_graph(program, sources, fallback, None)
+}
+
+fn build_ast_graph(
+    program: &Program,
+    sources: &SourceMap,
+    fallback: &str,
+    semantic: Option<&SemanticResult>,
+) -> AstGraphDto {
     let mut builder = AstBuilder {
         nodes: Vec::new(),
         sources,
         fallback,
         truncated: false,
+        semantic,
     };
     builder.program(program);
     AstGraphDto {
         nodes: builder.nodes,
         truncated: builder.truncated,
+        partial: semantic.is_some_and(|result| {
+            result
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.severity == compiler_core::diagnostic::Severity::Error)
+        }),
     }
 }
 
@@ -909,5 +1006,92 @@ mod tests {
         let graph = ast_dto(&analysis.program, &analysis.sources, "main.itd");
         assert_eq!(graph.nodes.len(), MAX_AST_NODES);
         assert!(graph.truncated);
+    }
+
+    #[test]
+    fn projects_real_types_symbols_and_implicit_conversions() {
+        let dto = analysis_dto(
+            compiler_core::analyze("let count := 2; let total := count + 0.5dec;"),
+            "main.itd",
+        );
+        assert!(dto.ast.nodes.iter().all(|node| node.semantic.is_none()));
+        assert!(!dto.ast.nodes.iter().any(|node| node.kind == "Coercion"));
+        let graph = dto.semantic_ast.unwrap();
+        assert!(!graph.partial);
+        let conversion = graph
+            .nodes
+            .iter()
+            .find(|node| node.kind == "Coercion")
+            .unwrap();
+        let metadata = conversion.semantic.as_ref().unwrap();
+        assert_eq!(metadata.source_type.as_deref(), Some("Int"));
+        assert_eq!(metadata.inferred_type.as_deref(), Some("Decimal"));
+        let name = graph.nodes.iter().find(|node| node.kind == "Name").unwrap();
+        assert_eq!(name.parent_id.as_deref(), Some(conversion.id.as_str()));
+        let metadata = name.semantic.as_ref().unwrap();
+        assert_eq!(metadata.inferred_type.as_deref(), Some("Int"));
+        assert_eq!(metadata.symbol.as_ref().unwrap().name, "count");
+        assert_eq!(
+            name.location.as_ref().unwrap().start,
+            conversion.location.as_ref().unwrap().start
+        );
+        assert!(graph.nodes.iter().any(|node| node.kind == "Binary"
+            && node.semantic.as_ref().unwrap().inferred_type.as_deref() == Some("Decimal")));
+    }
+
+    #[test]
+    fn keeps_shadowed_symbols_distinct_and_semantic_failures_honest() {
+        let dto = analysis_dto(
+            compiler_core::analyze("let value := 1; { let value := true; value; } value;"),
+            "main.itd",
+        );
+        let graph = dto.semantic_ast.unwrap();
+        let ids: std::collections::HashSet<_> = graph
+            .nodes
+            .iter()
+            .filter_map(|node| {
+                node.semantic
+                    .as_ref()?
+                    .symbol
+                    .as_ref()
+                    .map(|symbol| symbol.id)
+            })
+            .collect();
+        assert_eq!(ids.len(), 2);
+        let invalid = analysis_dto(compiler_core::analyze("missing;"), "main.itd");
+        let graph = invalid.semantic_ast.unwrap();
+        assert!(graph.partial);
+        let metadata = graph
+            .nodes
+            .iter()
+            .find(|node| node.kind == "Name")
+            .unwrap()
+            .semantic
+            .as_ref()
+            .unwrap();
+        assert_eq!(metadata.inferred_type.as_deref(), Some("Error"));
+        assert!(metadata.symbol.is_none());
+        assert!(
+            analysis_dto(compiler_core::analyze("let := ;"), "main.itd")
+                .semantic_ast
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn bounds_semantic_graphs_without_orphans() {
+        let source = "{ let count := 2; count + 0.5dec; }\n".repeat(MAX_AST_NODES);
+        let graph = analysis_dto(compiler_core::analyze(&source), "main.itd")
+            .semantic_ast
+            .unwrap();
+        assert_eq!(graph.nodes.len(), MAX_AST_NODES);
+        assert!(graph.truncated);
+        let mut seen = std::collections::HashSet::new();
+        for node in &graph.nodes {
+            if let Some(parent) = &node.parent_id {
+                assert!(seen.contains(parent));
+            }
+            seen.insert(node.id.clone());
+        }
     }
 }

@@ -28,16 +28,23 @@ export interface AstNodeDto {
   kind: string
   label: string
   location: LocationDto | null
+  semantic?: {
+    inferredType: string | null
+    sourceType: string | null
+    symbol: { id: number; name: string } | null
+  }
 }
 export interface AstGraphDto {
   nodes: AstNodeDto[]
   truncated: boolean
+  partial?: boolean
 }
 export interface AnalysisDto {
   diagnostics: DiagnosticDto[]
   tokens: TokenDto[]
   symbols: SymbolDto[]
   ast: AstGraphDto
+  semanticAst: AstGraphDto | null
   bytecode: BytecodeDto
 }
 export interface RunDto {
