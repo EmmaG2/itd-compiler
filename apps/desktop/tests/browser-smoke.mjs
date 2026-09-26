@@ -9,7 +9,7 @@ export default async function smoke(page) {
       truncated: false,
       nodes: [
         {
-          id: 'ast-0',
+          id: 'program',
           parentId: null,
           relation: null,
           kind: 'Program',
@@ -17,55 +17,82 @@ export default async function smoke(page) {
           location: null,
         },
         {
-          id: 'ast-1',
-          parentId: 'ast-0',
+          id: 'count',
+          parentId: 'program',
           relation: 'item',
           kind: 'Variable',
-          label: 'amount',
+          label: 'count',
           location,
         },
         {
-          id: 'ast-2',
-          parentId: 'ast-1',
+          id: 'two',
+          parentId: 'count',
+          relation: 'initializer',
+          kind: 'Literal',
+          label: '2',
+          location,
+        },
+        {
+          id: 'total',
+          parentId: 'program',
+          relation: 'item',
+          kind: 'Variable',
+          label: 'total',
+          location,
+        },
+        {
+          id: 'sum',
+          parentId: 'total',
           relation: 'initializer',
           kind: 'Binary',
           label: 'Add',
           location,
         },
         {
-          id: 'ast-3',
-          parentId: 'ast-2',
+          id: 'name',
+          parentId: 'sum',
           relation: 'left',
-          kind: 'Literal',
-          label: '0.1dec',
+          kind: 'Name',
+          label: 'count',
           location,
         },
         {
-          id: 'ast-4',
-          parentId: 'ast-2',
-          relation: 'right',
-          kind: 'Binary',
-          label: 'Multiply',
-          location,
-        },
-        {
-          id: 'ast-5',
-          parentId: 'ast-4',
-          relation: 'left',
-          kind: 'Literal',
-          label: '0.2dec',
-          location,
-        },
-        {
-          id: 'ast-6',
-          parentId: 'ast-4',
+          id: 'decimal',
+          parentId: 'sum',
           relation: 'right',
           kind: 'Literal',
-          label: '0.3dec',
+          label: '0.5dec',
           location,
         },
       ],
     }
+    const semanticAst = {
+      ...ast,
+      partial: false,
+      nodes: ast.nodes.map((node) => ({
+        ...node,
+        parentId: node.id === 'name' ? 'conversion' : node.parentId,
+        semantic: ['sum', 'decimal'].includes(node.id)
+          ? { inferredType: 'Decimal', sourceType: null, symbol: null }
+          : ['name', 'two'].includes(node.id)
+            ? {
+                inferredType: 'Int',
+                sourceType: null,
+                symbol: node.id === 'name' ? { id: 7, name: 'count' } : null,
+              }
+            : null,
+      })),
+    }
+    semanticAst.nodes.push({
+      id: 'conversion',
+      parentId: 'sum',
+      relation: 'left',
+      kind: 'Coercion',
+      label: 'Int → Decimal',
+      location,
+      semantic: { inferredType: 'Decimal', sourceType: 'Int', symbol: null },
+    })
+    window.__semanticMode = 'valid'
     const bytecode = {
       truncated: false,
       rows: [
@@ -81,7 +108,35 @@ export default async function smoke(page) {
       invoke: async (command, args) => {
         window.__calls.push({ command, args })
         if (command === 'analyze_source')
-          return { diagnostics: [], tokens: [], symbols: [], ast, bytecode }
+          return {
+            diagnostics: [],
+            tokens: [],
+            symbols: [],
+            ast,
+            bytecode,
+            semanticAst: window.__semanticMode === 'unavailable'
+              ? null
+              : {
+                  ...semanticAst,
+                  partial: window.__semanticMode === 'partial',
+                  truncated: window.__semanticMode === 'partial',
+                  nodes: window.__semanticMode === 'partial'
+                    ? semanticAst.nodes.map((node) =>
+                        node.id === 'name'
+                          ? {
+                              ...node,
+                              semantic: { inferredType: null, sourceType: null, symbol: null },
+                            }
+                          : node.id === 'sum'
+                            ? {
+                                ...node,
+                                semantic: { inferredType: 'Error', sourceType: null, symbol: null },
+                              }
+                            : node,
+                      )
+                    : semanticAst.nodes,
+                },
+          }
         if (command === 'run_source') {
           if (window.__delayRun)
             await new Promise((resolve) => {
@@ -119,9 +174,18 @@ export default async function smoke(page) {
     ),
   )
   await page.getByRole('tab', { name: 'AST', exact: true }).click()
-  await page.getByRole('button', { name: 'Ampliar AST', exact: true }).click()
+  const treeBounds = await page
+    .getByRole('tabpanel', { name: 'AST', exact: true })
+    .boundingBox()
+  assert(treeBounds.height >= 360)
+  await page
+    .getByRole('tabpanel', { name: 'Sintáctico', exact: true })
+    .locator('.ast-node')
+    .first()
+    .waitFor()
+  await page.getByRole('button', { name: 'Ampliar árbol sintáctico', exact: true }).click()
   const dialog = page.getByRole('dialog', {
-    name: 'Grafo AST · pantalla completa',
+    name: 'Árbol sintáctico · pantalla completa',
   })
   await dialog.waitFor({ state: 'visible' })
   await dialog.getByRole('button', { name: 'Acercar', exact: true }).waitFor()
@@ -145,10 +209,51 @@ export default async function smoke(page) {
   await dialog.waitFor({ state: 'hidden' })
   assert.equal(
     await page
-      .getByRole('button', { name: 'Ampliar AST', exact: true })
+      .getByRole('button', { name: 'Ampliar árbol sintáctico', exact: true })
       .evaluate((button) => document.activeElement === button),
     true,
   )
+  assert.equal(
+    await page
+      .getByRole('tab', { name: 'Sintáctico', exact: true })
+      .getAttribute('aria-selected'),
+    'true',
+  )
+  await page.getByRole('tab', { name: 'Semántico', exact: true }).click()
+  await page.getByRole('button', { name: 'Ampliar árbol semántico', exact: true }).click()
+  const semanticDialog = page.getByRole('dialog', {
+    name: 'Árbol semántico · pantalla completa',
+  })
+  await semanticDialog.waitFor({ state: 'visible' })
+  await semanticDialog.getByText('Tipo: Decimal', { exact: true }).first().waitFor()
+  await semanticDialog.getByText('Conversión: Int → Decimal', { exact: true }).waitFor()
+  await semanticDialog.getByText('Símbolo: count (#7)', { exact: true }).waitFor()
+  await page.keyboard.press('Escape')
+  await page.evaluate(() => {
+    window.__semanticMode = 'partial'
+  })
+  await page.getByRole('button', { name: 'Analizar', exact: true }).click()
+  await page
+    .getByText('Análisis semántico con errores: se muestra la información disponible.', { exact: true })
+    .first()
+    .waitFor()
+  await page.getByText('Tipo: no resuelto', { exact: true }).waitFor()
+  await page.getByText('Tipo: Error', { exact: true }).waitFor()
+  await page
+    .getByText('Árbol semántico limitado a 2,000 nodos', { exact: true })
+    .first()
+    .waitFor()
+  await page.evaluate(() => {
+    window.__semanticMode = 'unavailable'
+  })
+  await page.getByRole('button', { name: 'Analizar', exact: true }).click()
+  await page
+    .getByText('Sin árbol semántico. Analiza código sin errores léxicos o sintácticos.', { exact: true })
+    .waitFor()
+  await page.evaluate(() => {
+    window.__semanticMode = 'valid'
+  })
+  await page.getByRole('button', { name: 'Analizar', exact: true }).click()
   await page.getByRole('tab', { name: 'Bytecode', exact: true }).click()
   await page.getByRole('button', { name: /Binary\(Multiply\)/ }).click()
   assert.equal(
@@ -160,6 +265,13 @@ export default async function smoke(page) {
 
   const editor = page.locator('.cm-content')
   await editor.fill('let changed := 1;')
+  await page.getByRole('tab', { name: 'AST', exact: true }).click()
+  await page.getByRole('tab', { name: 'Semántico', exact: true }).click()
+  await page
+    .getByText('Sin árbol semántico. Analiza código sin errores léxicos o sintácticos.', { exact: true })
+    .waitFor()
+  await page.getByRole('tab', { name: 'Sintáctico', exact: true }).click()
+  await page.getByText('Sin AST', { exact: true }).waitFor()
   await page
     .getByRole('combobox', { name: 'Ejemplos', exact: true })
     .selectOption('expressions')
@@ -207,7 +319,7 @@ export default async function smoke(page) {
   await page.getByRole('button', { name: 'Analizar', exact: true }).click()
   await page.getByRole('tab', { name: 'AST', exact: true }).click()
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.getByRole('button', { name: 'Ampliar AST', exact: true }).click()
+  await page.getByRole('button', { name: 'Ampliar árbol sintáctico', exact: true }).click()
   await dialog.waitFor({ state: 'visible' })
   assert.equal((await dialog.boundingBox()).width, 390)
   assert.equal(
@@ -221,6 +333,9 @@ export default async function smoke(page) {
     .click()
   return {
     passed: [
+      'two trees and semantic metadata',
+      'partial and unavailable semantics',
+      'both trees invalidated',
       'catalog',
       'source sync',
       'fullscreen',

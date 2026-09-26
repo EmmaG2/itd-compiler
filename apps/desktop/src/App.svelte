@@ -34,6 +34,9 @@
   let tokens = $state<TokenDto[]>([])
   let symbols = $state<SymbolDto[]>([])
   let ast = $state<AnalysisDto['ast']>({ nodes: [], truncated: false })
+  let semanticAst = $state<AnalysisDto['semanticAst']>(null)
+  let treeView = $state('syntax')
+  const emptyGraph: AnalysisDto['ast'] = { nodes: [], truncated: false }
   let output = $state(strings.noOutput)
   let activeTab = $state('diagnostics')
   let reveal = $state<LocationDto | null>(null)
@@ -42,7 +45,7 @@
   let busy = $derived(status === 'analyzing' || status === 'running' || executionId !== null)
 
   function invalidate(value: string) {
-    source = value; revision += 1; diagnostics = []; tokens = []; symbols = []; ast = { nodes: [], truncated: false }; bytecode = { rows: [], truncated: false }; reveal = null; output = strings.noOutput; projectLocation = null
+    source = value; revision += 1; diagnostics = []; tokens = []; symbols = []; ast = { nodes: [], truncated: false }; semanticAst = null; bytecode = { rows: [], truncated: false }; reveal = null; output = strings.noOutput; projectLocation = null
     if (!busy) setStatus('ready')
   }
   function setStatus(value: Status, text = strings[value]) { status = value; statusText = text }
@@ -75,7 +78,7 @@
     try {
       const result = await analyzeSource(source, virtualPath)
       if (requestRevision !== revision) { setStatus('ready'); return }
-      resultScope = 'source'; diagnostics = result.diagnostics; tokens = result.tokens; symbols = result.symbols; ast = result.ast; bytecode = result.bytecode
+      resultScope = 'source'; diagnostics = result.diagnostics; tokens = result.tokens; symbols = result.symbols; ast = result.ast; semanticAst = result.semanticAst; bytecode = result.bytecode
       setStatus(result.diagnostics.some((item) => item.severity === 'error') ? 'failed' : 'ready')
     } catch (error: unknown) { if (requestRevision !== revision) { setStatus('ready'); return } fail(error) }
   }
@@ -90,7 +93,7 @@
       const result = project ? await runProject(requestEntry, executionId) : await runSource(source, requestPath, executionId)
       if (requestRevision !== revision || requestPath !== virtualPath || requestEntry !== entryModule) { setStatus('ready'); return }
       resultScope = project ? 'project' : 'source'
-      if (project) { ast = { nodes: [], truncated: false }; tokens = []; symbols = [] }
+      if (project) { ast = { nodes: [], truncated: false }; semanticAst = null; tokens = []; symbols = [] }
       bytecode = result.bytecode
       output = result.output || strings.noOutput; showDiagnostics(result.diagnostics)
       setStatus(result.diagnostics.some((item) => item.code === 'E5004') ? 'cancelled' : result.diagnostics.some((item) => item.severity === 'error') ? 'failed' : 'ready')
@@ -115,7 +118,7 @@
     try {
       const result = await analyzeProjectRequest(entryModule)
       if (requestRevision !== revision) { setStatus('ready'); return }
-      resultScope = 'project'; ast = { nodes: [], truncated: false }; bytecode = { rows: [], truncated: false }; tokens = []; symbols = []
+      resultScope = 'project'; ast = { nodes: [], truncated: false }; semanticAst = null; bytecode = { rows: [], truncated: false }; tokens = []; symbols = []
       showDiagnostics(result.diagnostics); output = result.modules.join('\n') || strings.noOutput
       setStatus(result.diagnostics.some((item) => item.severity === 'error') ? 'failed' : 'ready')
     } catch (error: unknown) { if (requestRevision !== revision) { setStatus('ready'); return } fail(error) }
@@ -243,8 +246,43 @@
               {:else}<p class="py-12 text-center text-sm text-muted-foreground">{strings.noSymbols}</p>{/if}
             </ScrollArea>
           </Tabs.Content>
-          <Tabs.Content value="ast" class="h-[max(360px,calc(min(60vh,640px)-52px))] overflow-hidden rounded-md border">
-            <AstGraph graph={ast} onSelect={navigate} emptyLabel={strings.noAst} truncatedLabel={strings.astTruncated} />
+          <Tabs.Content value="ast" class="flex-none h-[max(360px,calc(min(60vh,640px)-52px))] overflow-hidden rounded-md border">
+            <Tabs.Root bind:value={treeView} class="flex h-full min-h-0 flex-col gap-0">
+              <Tabs.List aria-label={strings.treeViews} class="m-2 shrink-0 self-start">
+                <Tabs.Trigger value="syntax">{strings.syntaxTree}</Tabs.Trigger>
+                <Tabs.Trigger value="semantic">{strings.semanticTree}</Tabs.Trigger>
+              </Tabs.List>
+              <Tabs.Content value="syntax" class="min-h-0 flex-1">
+                {#if activeTab === 'ast' && treeView === 'syntax'}
+                  <AstGraph
+                    graph={ast}
+                    onSelect={navigate}
+                    emptyLabel={strings.noAst}
+                    truncatedLabel={strings.astTruncated}
+                    title={strings.syntaxTitle}
+                    expandLabel={strings.expandSyntax}
+                  />
+                {/if}
+              </Tabs.Content>
+              <Tabs.Content value="semantic" class="min-h-0 flex-1">
+                {#if activeTab === 'ast' && treeView === 'semantic'}
+                  <div class="flex h-full min-h-0 flex-col">
+                    <p class="px-3 pb-2 text-sm text-muted-foreground">{strings.semanticHelp}</p>
+                    <div class="min-h-0 flex-1">
+                      <AstGraph
+                        graph={semanticAst ?? emptyGraph}
+                        onSelect={navigate}
+                        emptyLabel={strings.noSemanticAst}
+                        truncatedLabel={strings.semanticTruncated}
+                        title={strings.semanticTitle}
+                        expandLabel={strings.expandSemantic}
+                        help={strings.semanticHelp + ' ' + strings.astHelp}
+                      />
+                    </div>
+                  </div>
+                {/if}
+              </Tabs.Content>
+            </Tabs.Root>
           </Tabs.Content>
           <Tabs.Content value="bytecode" class="h-[max(360px,calc(min(60vh,640px)-52px))] overflow-hidden rounded-md border">
             <BytecodeView {bytecode} onSelect={navigate} />

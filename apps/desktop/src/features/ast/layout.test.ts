@@ -1,7 +1,62 @@
 import { describe, expect, it } from 'vitest'
-import { layoutAst } from './layout'
+import { layoutAst, semanticLabels } from './layout'
 
 describe('layoutAst', () => {
+  it('renders native semantic metadata without inventing types or symbols', () => {
+    expect(semanticLabels(undefined)).toEqual([])
+    expect(
+      semanticLabels({ inferredType: null, sourceType: null, symbol: null }),
+    ).toEqual(['Tipo: no resuelto'])
+    expect(
+      semanticLabels({ inferredType: 'Error', sourceType: null, symbol: null }),
+    ).toEqual(['Tipo: Error'])
+    expect(
+      semanticLabels({
+        inferredType: 'Decimal',
+        sourceType: 'Int',
+        symbol: { id: 7, name: 'count' },
+      }),
+    ).toEqual([
+      'Tipo: Decimal',
+      'Conversión: Int → Decimal',
+      'Símbolo: count (#7)',
+    ])
+  })
+
+  it('preserves semantic metadata and leaves room for annotated nodes', () => {
+    const semantic = {
+      inferredType: 'Int',
+      sourceType: null,
+      symbol: { id: 7, name: 'count' },
+    }
+    const { nodes } = layoutAst({
+      truncated: false,
+      nodes: [
+        {
+          id: 'root',
+          parentId: null,
+          relation: null,
+          kind: 'Program',
+          label: 'Program',
+          location: null,
+        },
+        {
+          id: 'name',
+          parentId: 'root',
+          relation: 'item',
+          kind: 'Name',
+          label: 'count',
+          location: null,
+          semantic,
+        },
+      ],
+    })
+    expect(nodes[1]!.data.node.semantic).toEqual(semantic)
+    expect(
+      nodes[1]!.position.y - nodes[0]!.position.y,
+    ).toBeGreaterThanOrEqual(180)
+  })
+
   it('keeps an empty graph empty and lays out siblings without overlap', () => {
     expect(layoutAst({ nodes: [], truncated: false }).nodes).toEqual([])
     const graph = {

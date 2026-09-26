@@ -377,6 +377,9 @@ impl<'a> AstBuilder<'a> {
     }
 
     fn program(&mut self, program: &Program) {
+        if program.items.is_empty() {
+            return;
+        }
         let Some(id) = self.push(None, None, "Program", "Program".to_owned(), None) else {
             return;
         };
@@ -1076,6 +1079,17 @@ mod tests {
                 .semantic_ast
                 .is_none()
         );
+    }
+
+    #[test]
+    fn keeps_empty_source_graphs_empty() {
+        for source in ["", " \n\t "] {
+            let dto = analysis_dto(compiler_core::analyze(source), "main.itd");
+            assert!(dto.ast.nodes.is_empty());
+            let semantic = dto.semantic_ast.unwrap();
+            assert!(semantic.nodes.is_empty());
+            assert!(!semantic.partial);
+        }
     }
 
     #[test]

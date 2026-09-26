@@ -71,6 +71,8 @@ Los ejemplos de sintaxis están en [`docs/language/examples`](docs/language/exam
 
 El catálogo de la app carga diez programas con salida esperada: algoritmos, cuentas, inventario, composición y traits. Los archivos viven en `docs/language/examples`; la carpeta `invoice` demuestra ejecución entre módulos.
 
-**Analizar** muestra AST y bytecode; **Ejecutar** usa la VM de pila. **Ampliar AST** abre el grafo a pantalla completa, con controles adaptados al tema oscuro. **Analizar proyecto** y **Ejecutar proyecto** son acciones distintas.
+**Analizar** muestra AST y bytecode; **Ejecutar** usa la VM de pila. El apartado **AST** ofrece dos pestañas: **Sintáctico** (estructura del programa) y **Semántico** (estructura con tipos, símbolos resueltos y nodos de conversión implícita). Ambos árboles permiten ampliar la vista y seleccionar nodos para navegar al código. **Analizar proyecto** y **Ejecutar proyecto** son acciones distintas.
+
+Para comparar los árboles, analiza `let count := 2; let total := count + 0.5dec;`: el semántico muestra la conversión `Int → Decimal` y la resolución de `count`. Esta vista combina la estructura sintáctica con el análisis semántico, sin crear un tercer árbol. Los errores semánticos permiten una vista parcial; los errores léxicos o sintácticos dejan la vista semántica no disponible. Editar o cargar otra fuente limpia ambos resultados.
 
 Detalles: [bytecode y API](docs/language/bytecode.md), [benchmark](docs/language/performance.md) y [verificación de la interfaz](apps/desktop/tests/README.md).
