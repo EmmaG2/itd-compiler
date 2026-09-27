@@ -114,28 +114,38 @@ export default async function smoke(page) {
             symbols: [],
             ast,
             bytecode,
-            semanticAst: window.__semanticMode === 'unavailable'
-              ? null
-              : {
-                  ...semanticAst,
-                  partial: window.__semanticMode === 'partial',
-                  truncated: window.__semanticMode === 'partial',
-                  nodes: window.__semanticMode === 'partial'
-                    ? semanticAst.nodes.map((node) =>
-                        node.id === 'name'
-                          ? {
-                              ...node,
-                              semantic: { inferredType: null, sourceType: null, symbol: null },
-                            }
-                          : node.id === 'sum'
-                            ? {
-                                ...node,
-                                semantic: { inferredType: 'Error', sourceType: null, symbol: null },
-                              }
-                            : node,
-                      )
-                    : semanticAst.nodes,
-                },
+            semanticAst:
+              window.__semanticMode === 'unavailable'
+                ? null
+                : {
+                    ...semanticAst,
+                    partial: window.__semanticMode === 'partial',
+                    truncated: window.__semanticMode === 'partial',
+                    nodes:
+                      window.__semanticMode === 'partial'
+                        ? semanticAst.nodes.map((node) =>
+                            node.id === 'name'
+                              ? {
+                                  ...node,
+                                  semantic: {
+                                    inferredType: null,
+                                    sourceType: null,
+                                    symbol: null,
+                                  },
+                                }
+                              : node.id === 'sum'
+                                ? {
+                                    ...node,
+                                    semantic: {
+                                      inferredType: 'Error',
+                                      sourceType: null,
+                                      symbol: null,
+                                    },
+                                  }
+                                : node,
+                          )
+                        : semanticAst.nodes,
+                  },
           }
         if (command === 'run_source') {
           if (window.__delayRun)
@@ -183,7 +193,9 @@ export default async function smoke(page) {
     .locator('.ast-node')
     .first()
     .waitFor()
-  await page.getByRole('button', { name: 'Ampliar árbol sintáctico', exact: true }).click()
+  await page
+    .getByRole('button', { name: 'Ampliar árbol sintáctico', exact: true })
+    .click()
   const dialog = page.getByRole('dialog', {
     name: 'Árbol sintáctico · pantalla completa',
   })
@@ -220,21 +232,33 @@ export default async function smoke(page) {
     'true',
   )
   await page.getByRole('tab', { name: 'Semántico', exact: true }).click()
-  await page.getByRole('button', { name: 'Ampliar árbol semántico', exact: true }).click()
+  await page
+    .getByRole('button', { name: 'Ampliar árbol semántico', exact: true })
+    .click()
   const semanticDialog = page.getByRole('dialog', {
     name: 'Árbol semántico · pantalla completa',
   })
   await semanticDialog.waitFor({ state: 'visible' })
-  await semanticDialog.getByText('Tipo: Decimal', { exact: true }).first().waitFor()
-  await semanticDialog.getByText('Conversión: Int → Decimal', { exact: true }).waitFor()
-  await semanticDialog.getByText('Símbolo: count (#7)', { exact: true }).waitFor()
+  await semanticDialog
+    .getByText('Tipo: Decimal', { exact: true })
+    .first()
+    .waitFor()
+  await semanticDialog
+    .getByText('Conversión: Int → Decimal', { exact: true })
+    .waitFor()
+  await semanticDialog
+    .getByText('Símbolo: count (#7)', { exact: true })
+    .waitFor()
   await page.keyboard.press('Escape')
   await page.evaluate(() => {
     window.__semanticMode = 'partial'
   })
   await page.getByRole('button', { name: 'Analizar', exact: true }).click()
   await page
-    .getByText('Análisis semántico con errores: se muestra la información disponible.', { exact: true })
+    .getByText(
+      'Análisis semántico con errores: se muestra la información disponible.',
+      { exact: true },
+    )
     .first()
     .waitFor()
   await page.getByText('Tipo: no resuelto', { exact: true }).waitFor()
@@ -248,7 +272,10 @@ export default async function smoke(page) {
   })
   await page.getByRole('button', { name: 'Analizar', exact: true }).click()
   await page
-    .getByText('Sin árbol semántico. Analiza código sin errores léxicos o sintácticos.', { exact: true })
+    .getByText(
+      'Sin árbol semántico. Analiza código sin errores léxicos o sintácticos.',
+      { exact: true },
+    )
     .waitFor()
   await page.evaluate(() => {
     window.__semanticMode = 'valid'
@@ -268,7 +295,10 @@ export default async function smoke(page) {
   await page.getByRole('tab', { name: 'AST', exact: true }).click()
   await page.getByRole('tab', { name: 'Semántico', exact: true }).click()
   await page
-    .getByText('Sin árbol semántico. Analiza código sin errores léxicos o sintácticos.', { exact: true })
+    .getByText(
+      'Sin árbol semántico. Analiza código sin errores léxicos o sintácticos.',
+      { exact: true },
+    )
     .waitFor()
   await page.getByRole('tab', { name: 'Sintáctico', exact: true }).click()
   await page.getByText('Sin AST', { exact: true }).waitFor()
@@ -319,7 +349,9 @@ export default async function smoke(page) {
   await page.getByRole('button', { name: 'Analizar', exact: true }).click()
   await page.getByRole('tab', { name: 'AST', exact: true }).click()
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.getByRole('button', { name: 'Ampliar árbol sintáctico', exact: true }).click()
+  await page
+    .getByRole('button', { name: 'Ampliar árbol sintáctico', exact: true })
+    .click()
   await dialog.waitFor({ state: 'visible' })
   assert.equal((await dialog.boundingBox()).width, 390)
   assert.equal(

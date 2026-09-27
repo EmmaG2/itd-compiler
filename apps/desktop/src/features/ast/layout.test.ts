@@ -52,9 +52,9 @@ describe('layoutAst', () => {
       ],
     })
     expect(nodes[1]!.data.node.semantic).toEqual(semantic)
-    expect(
-      nodes[1]!.position.y - nodes[0]!.position.y,
-    ).toBeGreaterThanOrEqual(180)
+    expect(nodes[1]!.position.y - nodes[0]!.position.y).toBeGreaterThanOrEqual(
+      180,
+    )
   })
 
   it('keeps an empty graph empty and lays out siblings without overlap', () => {
@@ -97,7 +97,14 @@ describe('layoutAst', () => {
 
   it('draws each repeated item relation on a distinct parent-child line in both trees', () => {
     const nodes = [
-      { id: 'root', parentId: null, relation: null, kind: 'Program', label: 'Program', location: null },
+      {
+        id: 'root',
+        parentId: null,
+        relation: null,
+        kind: 'Program',
+        label: 'Program',
+        location: null,
+      },
       ...['a', 'b', 'c', 'call'].map((id) => ({
         id,
         parentId: 'root',
@@ -110,13 +117,34 @@ describe('layoutAst', () => {
     for (const semantic of [false, true]) {
       const graph = {
         truncated: false,
-        nodes: nodes.map((node) => semantic
-          ? { ...node, semantic: { inferredType: 'Void', sourceType: null, symbol: null } }
-          : node),
+        nodes: nodes.map((node) =>
+          semantic
+            ? {
+                ...node,
+                semantic: {
+                  inferredType: 'Void',
+                  sourceType: null,
+                  symbol: null,
+                },
+              }
+            : node,
+        ),
       }
       const { edges } = layoutAst(graph)
-      expect(edges.map(({ source, target, label, type }) => ({ source, target, label, type }))).toEqual(
-        ['a', 'b', 'c', 'call'].map((target) => ({ source: 'root', target, label: 'item', type: 'straight' })),
+      expect(
+        edges.map(({ source, target, label, type }) => ({
+          source,
+          target,
+          label,
+          type,
+        })),
+      ).toEqual(
+        ['a', 'b', 'c', 'call'].map((target) => ({
+          source: 'root',
+          target,
+          label: 'item',
+          type: 'straight',
+        })),
       )
     }
   })

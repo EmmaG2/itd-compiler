@@ -1,5 +1,11 @@
 <script lang="ts">
-  import { Background, BackgroundVariant, Controls, MiniMap, SvelteFlow } from '@xyflow/svelte'
+  import {
+    Background,
+    BackgroundVariant,
+    Controls,
+    MiniMap,
+    SvelteFlow,
+  } from '@xyflow/svelte'
   import { Maximize2, X } from '@lucide/svelte'
   import { Button } from '$lib/components/ui/button'
   import AstNode from './AstNode.svelte'
@@ -9,7 +15,23 @@
   import type { Edge, NodeTypes } from '@xyflow/svelte'
   import type { AstGraphDto, LocationDto } from '$lib/types/compiler'
 
-  let { graph, onSelect, emptyLabel, truncatedLabel, title, expandLabel, help = strings.astHelp }: { graph: AstGraphDto; onSelect: (location: LocationDto) => void; emptyLabel: string; truncatedLabel: string; title: string; expandLabel: string; help?: string } = $props()
+  let {
+    graph,
+    onSelect,
+    emptyLabel,
+    truncatedLabel,
+    title,
+    expandLabel,
+    help = strings.astHelp,
+  }: {
+    graph: AstGraphDto
+    onSelect: (location: LocationDto) => void
+    emptyLabel: string
+    truncatedLabel: string
+    title: string
+    expandLabel: string
+    help?: string
+  } = $props()
   let dialogId = $derived('tree-' + title.replaceAll(' ', '-'))
   const nodeTypes = { ast: AstNode } satisfies NodeTypes
   const fitViewOptions = { padding: 0.2, minZoom: 0.03, maxZoom: 1 }
@@ -23,8 +45,15 @@
   let edges = $state.raw<Edge[]>([])
   let expanded = $state(false)
   let dialog: HTMLDialogElement
-  $effect(() => { const layout = layoutAst($state.snapshot(graph)); nodes = layout.nodes; edges = layout.edges })
-  function expand() { expanded = true; dialog.showModal() }
+  $effect(() => {
+    const layout = layoutAst($state.snapshot(graph))
+    nodes = layout.nodes
+    edges = layout.edges
+  })
+  function expand() {
+    expanded = true
+    dialog.showModal()
+  }
   function select(location: LocationDto | null) {
     if (!location) return
     if (expanded) dialog.close()
@@ -34,7 +63,21 @@
 
 {#snippet flow()}
   <div class="ast-flow">
-    <SvelteFlow bind:nodes bind:edges {nodeTypes} colorMode="dark" fitView {fitViewOptions} minZoom={0.03} {ariaLabelConfig} onlyRenderVisibleElements nodesDraggable={false} nodesConnectable={false} elementsSelectable onnodeclick={({ node }) => select(node.data.node.location)}>
+    <SvelteFlow
+      bind:nodes
+      bind:edges
+      {nodeTypes}
+      colorMode="dark"
+      fitView
+      {fitViewOptions}
+      minZoom={0.03}
+      {ariaLabelConfig}
+      onlyRenderVisibleElements
+      nodesDraggable={false}
+      nodesConnectable={false}
+      elementsSelectable
+      onnodeclick={({ node }) => select(node.data.node.location)}
+    >
       <Controls showLock={false} {fitViewOptions} />
       <MiniMap ariaLabel={strings.minimap} pannable zoomable />
       <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
@@ -45,23 +88,52 @@
 <div class="flex h-full min-h-0 flex-col">
   {#if graph.nodes.length}
     <div class="flex shrink-0 justify-end border-b p-2">
-      <Button variant="outline" size="sm" onclick={expand} aria-haspopup="dialog"><Maximize2 />{expandLabel}</Button>
+      <Button
+        variant="outline"
+        size="sm"
+        onclick={expand}
+        aria-haspopup="dialog"><Maximize2 />{expandLabel}</Button
+      >
     </div>
-    <div class="min-h-0 flex-1">{#if !expanded}{@render flow()}{/if}</div>
+    <div class="min-h-0 flex-1">
+      {#if !expanded}{@render flow()}{/if}
+    </div>
   {:else}<p class="empty">{emptyLabel}</p>{/if}
-  {#if graph.partial}<p class="notice shrink-0" role="status">{strings.semanticPartial}</p>{/if}
+  {#if graph.partial}<p class="notice shrink-0" role="status">
+      {strings.semanticPartial}
+    </p>{/if}
   {#if graph.truncated}<p class="notice shrink-0">{truncatedLabel}</p>{/if}
 </div>
 
-<dialog bind:this={dialog} class="ast-dialog" aria-labelledby={dialogId + '-title'} aria-describedby={dialogId + '-help'} onclose={() => { expanded = false }}>
-  <header class="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b pb-3">
+<dialog
+  bind:this={dialog}
+  class="ast-dialog"
+  aria-labelledby={dialogId + '-title'}
+  aria-describedby={dialogId + '-help'}
+  onclose={() => {
+    expanded = false
+  }}
+>
+  <header
+    class="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b pb-3"
+  >
     <div>
-      <h2 id={dialogId + '-title'} class="text-lg font-semibold">{title} · {strings.fullscreenSuffix}</h2>
-      <p id={dialogId + '-help'} class="mt-1 text-sm text-muted-foreground">{help}</p>
+      <h2 id={dialogId + '-title'} class="text-lg font-semibold">
+        {title} · {strings.fullscreenSuffix}
+      </h2>
+      <p id={dialogId + '-help'} class="mt-1 text-sm text-muted-foreground">
+        {help}
+      </p>
     </div>
-    <Button variant="outline" onclick={() => dialog.close()}><X />{strings.closeAst}</Button>
+    <Button variant="outline" onclick={() => dialog.close()}
+      ><X />{strings.closeAst}</Button
+    >
   </header>
-  <div class="min-h-0 flex-1 overflow-hidden rounded-lg border">{#if expanded}{@render flow()}{/if}</div>
-  {#if graph.partial}<p class="notice shrink-0" role="status">{strings.semanticPartial}</p>{/if}
+  <div class="min-h-0 flex-1 overflow-hidden rounded-lg border">
+    {#if expanded}{@render flow()}{/if}
+  </div>
+  {#if graph.partial}<p class="notice shrink-0" role="status">
+      {strings.semanticPartial}
+    </p>{/if}
   {#if graph.truncated}<p class="notice shrink-0">{truncatedLabel}</p>{/if}
 </dialog>
