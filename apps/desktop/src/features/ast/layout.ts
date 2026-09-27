@@ -59,7 +59,7 @@ export function layoutAst(graph: AstGraphDto): {
         source: node.parentId!,
         target: node.id,
         label: node.relation ?? undefined,
-        type: 'smoothstep',
+        type: 'straight',
       })),
   }
 }

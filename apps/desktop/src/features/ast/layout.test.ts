@@ -94,4 +94,30 @@ describe('layoutAst', () => {
     expect(nodes[1]!.position.x).not.toBe(nodes[2]!.position.x)
     expect(edges).toHaveLength(2)
   })
+
+  it('draws each repeated item relation on a distinct parent-child line in both trees', () => {
+    const nodes = [
+      { id: 'root', parentId: null, relation: null, kind: 'Program', label: 'Program', location: null },
+      ...['a', 'b', 'c', 'call'].map((id) => ({
+        id,
+        parentId: 'root',
+        relation: 'item',
+        kind: 'Variable',
+        label: id,
+        location: null,
+      })),
+    ]
+    for (const semantic of [false, true]) {
+      const graph = {
+        truncated: false,
+        nodes: nodes.map((node) => semantic
+          ? { ...node, semantic: { inferredType: 'Void', sourceType: null, symbol: null } }
+          : node),
+      }
+      const { edges } = layoutAst(graph)
+      expect(edges.map(({ source, target, label, type }) => ({ source, target, label, type }))).toEqual(
+        ['a', 'b', 'c', 'call'].map((target) => ({ source: 'root', target, label: 'item', type: 'straight' })),
+      )
+    }
+  })
 })
