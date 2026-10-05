@@ -20,7 +20,8 @@ controls execution. Neither substitutes for this semantic attribute stack.
   complete the feature in one run, preserving existing working-tree changes.
 - Push, PR creation, merge, and remote operations remain unauthorized. Native
   reviews remain subject to the effective mode and candidate-specific consent.
-- Status: SS-01 through SS-04 verified and committed; SS-05 is next.
+- Status: SS-01 through SS-05 implemented, functionally verified, and committed;
+  native WebView inspection remains pending. SS-06 documentation is next.
 - Repository locator: `odd/tasks/semantic-attribute-stack.md`.
 - Engram topic: `odd/semantic-attribute-stack/tasks`; project: `itd-compiler`.
 - No SDD artifacts or synthetic SDD run.
@@ -246,7 +247,7 @@ document/mirror updates, and delivery decisions.
     `make compile`. Record mock-vs-native boundaries explicitly.
   - Rollback: remove trace DTO exposure and matching fixtures, preserving core APIs.
 
-- [ ] **SS-05 — Semantic stack teaching panel**
+- [x] **SS-05 — Semantic stack teaching panel**
   - Depends on: SS-04. Estimate: 250–400 authored lines.
   - Files: new `features/semantic-stack/` view and replay utility/tests;
     `App.svelte`, `locales/es.json`, relevant smoke assertions.
@@ -271,6 +272,38 @@ document/mirror updates, and delivery decisions.
   - Rollback: remove feature documentation/examples without changing analysis behavior.
 
 ## Evidence ledger and recovery
+
+### SS-05 implementation evidence
+
+- Base: `cde2dfc`; source commit `c8a34204355fa949dd8e89c120e270dd6e99f378`:
+  486 additions + 24 deletions, six files. New component and pure replay utility
+  reuse existing editor navigation, result tabs, buttons and Spanish locale.
+- RED: Nix `make test-ui` failed on missing replay module. A later real-delta
+  regression failed because a synthetic combined-pop test hid missing operands
+  on actual Reduce events; fixed by accumulating preceding Consume attributes
+  across zero-delta conversions, without replaying a fabricated pop.
+- GREEN: `make test-ui compile format-check` exited 0 after corrections:
+  17 frontend tests across six files, Svelte check 0 errors/0 warnings,
+  production build succeeded with existing >500 kB chunk warning.
+- Browser smoke fixture now uses a real push/push/consume/consume/reduce/consume
+  sequence and asserts step state, operands/result, source navigation, reset and
+  source-edit invalidation. The fixture itself has no Make runner and was not run.
+- Manual Playwright inspection with mocked IPC on `make web` (localhost:5174)
+  observed two operands and result at Reduce, editor focus on source navigation,
+  reset to step zero on reanalysis, and trace removal on source edits.
+- Visual RED: new fifth tab wrapped Bytecode onto a second row while Tabs.List
+  height remained 36px versus scrollHeight 65px, overlapping panel help. Fixed
+  list height while preserving existing palette. Browser geometry GREEN:
+  1200px list height 66px, bottom 446 < help top 462; 390px list height 66px,
+  bottom 439.9 < help top 455.9. Mobile panel screenshot captured locally.
+- Parent ran scoped checks and the existing Make formatter only after writers
+  paused; all 29 pre-existing tracked dirty paths retained byte-identical diffs.
+- Native Tauri WebView click-through remains pending, distinct from browser mocks.
+  RDD assessment/preflight unavailable (127), due/unreviewed.
+- This slice is 510 authored lines before tracking overhead. A second coherent
+  PR slice was not made from replay alone because it would not deliver inspection;
+  do not shrink tests or UI to fit. Seek `size:exception` or a valid separate
+  deliverable before any remote PR; no exception was granted.
 
 ### SS-04 implementation evidence
 
