@@ -39,25 +39,52 @@ pub struct RunResult {
 
 #[must_use]
 pub fn analyze(source: &str) -> AnalysisResult {
+    analyze_internal(source, None).0
+}
+
+/// Capture semantic stack operations; syntax errors have no semantic trace.
+#[must_use]
+pub fn analyze_with_trace(
+    source: &str,
+    event_limit: usize,
+) -> (AnalysisResult, Option<semantic::SemanticTrace>) {
+    analyze_internal(source, Some(event_limit))
+}
+
+fn analyze_internal(
+    source: &str,
+    event_limit: Option<usize>,
+) -> (AnalysisResult, Option<semantic::SemanticTrace>) {
     let mut sources = SourceMap::new();
     let source_id = sources.add("<memory>", source);
     let lexed = lex(source, source_id);
     let parsed = parse(&lexed.tokens);
     let mut diagnostics = lexed.diagnostics;
     diagnostics.extend(parsed.diagnostics);
-    let semantic = diagnostics
-        .is_empty()
-        .then(|| analyze_semantics(&parsed.program));
+    let mut trace = None;
+    let semantic = diagnostics.is_empty().then(|| {
+        if let Some(limit) = event_limit {
+            let (result, captured) =
+                semantic::analyze_with_imports_and_trace(&parsed.program, &[], limit);
+            trace = Some(captured);
+            result
+        } else {
+            analyze_semantics(&parsed.program)
+        }
+    });
     if let Some(result) = &semantic {
         diagnostics.extend(result.diagnostics.clone());
     }
-    AnalysisResult {
-        sources,
-        tokens: lexed.tokens,
-        program: parsed.program,
-        semantic,
-        diagnostics,
-    }
+    (
+        AnalysisResult {
+            sources,
+            tokens: lexed.tokens,
+            program: parsed.program,
+            semantic,
+            diagnostics,
+        },
+        trace,
+    )
 }
 
 #[derive(Clone, Debug, PartialEq)]

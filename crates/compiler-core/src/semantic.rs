@@ -1,5 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
+pub use crate::semantic_stack::{
+    MAX_TRACE_EVENTS, SemanticTrace, SemanticTraceEvent, TraceAttribute, TraceEventKind,
+};
+
 use crate::{
     ast::{
         BinaryOp, ClassDecl, ClassMember, Decl, Expr, ExprId, ExprKind, FunctionDecl, Item,
@@ -103,7 +107,20 @@ pub fn analyze(program: &Program) -> SemanticResult {
 
 #[must_use]
 pub fn analyze_with_imports(program: &Program, imports: &[ImportedSymbol]) -> SemanticResult {
-    Analyzer::new(imports).program(program)
+    Analyzer::new(imports).program(program).0
+}
+
+/// Analyze using the same rules while capturing a bounded, replayable stack trace.
+#[must_use]
+pub fn analyze_with_imports_and_trace(
+    program: &Program,
+    imports: &[ImportedSymbol],
+    event_limit: usize,
+) -> (SemanticResult, SemanticTrace) {
+    let mut analyzer = Analyzer::new(imports);
+    analyzer.stack.enable_trace(event_limit);
+    let (result, trace) = analyzer.program(program);
+    (result, trace.unwrap_or_default())
 }
 
 struct Analyzer {
@@ -178,7 +195,7 @@ impl Analyzer {
         analyzer
     }
 
-    fn program(mut self, program: &Program) -> SemanticResult {
+    fn program(mut self, program: &Program) -> (SemanticResult, Option<SemanticTrace>) {
         for item in &program.items {
             match item {
                 Item::Class(class) | Item::ExportClass(class) => {
@@ -240,15 +257,19 @@ impl Analyzer {
                 Span::new(crate::source::SourceId(0), 0, 0),
             );
         }
-        SemanticResult {
-            symbols: self.symbols,
-            resolutions: self.resolutions,
-            types: self.types,
-            coercions: self.coercions,
-            classes: self.classes,
-            traits: self.traits,
-            diagnostics: self.diagnostics,
-        }
+        let trace = self.stack.take_trace();
+        (
+            SemanticResult {
+                symbols: self.symbols,
+                resolutions: self.resolutions,
+                types: self.types,
+                coercions: self.coercions,
+                classes: self.classes,
+                traits: self.traits,
+                diagnostics: self.diagnostics,
+            },
+            trace,
+        )
     }
 
     fn signature(
@@ -834,11 +855,39 @@ impl Analyzer {
             }
         };
         self.types.insert(expression.id, ty.clone());
-        self.stack.push(SemanticAttribute {
-            expression: expression.id,
-            ty,
-            span: expression.span,
-        });
+        let (rule, reduced) = match &expression.kind {
+            ExprKind::Literal(_) => ("literal", false),
+            ExprKind::Name(_) => ("name", false),
+            ExprKind::Unary { .. } => ("unary", true),
+            ExprKind::Binary { op, .. } => (
+                match op {
+                    BinaryOp::Add => "add",
+                    BinaryOp::Subtract => "subtract",
+                    BinaryOp::Multiply => "multiply",
+                    BinaryOp::Divide => "divide",
+                    BinaryOp::Remainder => "remainder",
+                    BinaryOp::Power => "power",
+                    BinaryOp::And => "and",
+                    BinaryOp::Or => "or",
+                    _ => "compare",
+                },
+                true,
+            ),
+            ExprKind::Assign { .. } => ("assignment", true),
+            ExprKind::Call { .. } => ("call", true),
+            ExprKind::Member { .. } => ("member", true),
+            ExprKind::Index { .. } => ("unsupported index", true),
+            ExprKind::Cast { .. } => ("cast", true),
+        };
+        self.stack.push_result(
+            SemanticAttribute {
+                expression: expression.id,
+                ty,
+                span: expression.span,
+            },
+            rule,
+            reduced,
+        );
     }
 
     fn check_arguments(
@@ -1077,20 +1126,20 @@ impl Analyzer {
         }
         .clone();
         if left != &result {
-            self.coercions.insert(left_id, result.clone());
+            self.record_coercion(left_id, result.clone());
         }
         if right != &result {
-            self.coercions.insert(right_id, result.clone());
+            self.record_coercion(right_id, result.clone());
         }
         result
     }
 
     fn promote_decimal(&mut self, left_id: ExprId, left: &Type, right_id: ExprId, right: &Type) {
         if left != &Type::Decimal {
-            self.coercions.insert(left_id, Type::Decimal);
+            self.record_coercion(left_id, Type::Decimal);
         }
         if right != &Type::Decimal {
-            self.coercions.insert(right_id, Type::Decimal);
+            self.record_coercion(right_id, Type::Decimal);
         }
     }
 
@@ -1140,6 +1189,11 @@ impl Analyzer {
             .rev()
             .find_map(|scope| scope.get(name).copied())
     }
+    fn record_coercion(&mut self, expression: ExprId, ty: Type) {
+        self.stack.conversion(expression, &ty);
+        self.coercions.insert(expression, ty);
+    }
+
     fn assignable(&mut self, expected: &Type, found: &Type, expression: ExprId) -> bool {
         if expected == found || *expected == Type::Error || *found == Type::Error {
             return true;
@@ -1150,7 +1204,7 @@ impl Analyzer {
         if integer_rank(found)
             .is_some_and(|from| integer_rank(expected).is_some_and(|to| from <= to))
         {
-            self.coercions.insert(expression, expected.clone());
+            self.record_coercion(expression, expected.clone());
             return true;
         }
         if let Type::Trait(name) = expected
