@@ -39,12 +39,33 @@ export interface AstGraphDto {
   truncated: boolean
   partial?: boolean
 }
+export interface TraceAttributeDto {
+  expression: number
+  typeLabel: string
+  location: LocationDto
+}
+export interface TraceEventDto {
+  kind: 'push' | 'reduce' | 'consume' | 'conversion' | 'recover'
+  expression: number
+  location: LocationDto
+  rule: string
+  depthBefore: number
+  depthAfter: number
+  popCount: number
+  pushed: TraceAttributeDto | null
+  conversionType: string | null
+}
+export interface SemanticTraceDto {
+  events: TraceEventDto[]
+  truncated: boolean
+}
 export interface AnalysisDto {
   diagnostics: DiagnosticDto[]
   tokens: TokenDto[]
   symbols: SymbolDto[]
   ast: AstGraphDto
   semanticAst: AstGraphDto | null
+  semanticStack: SemanticTraceDto | null
   bytecode: BytecodeDto
 }
 export interface RunDto {

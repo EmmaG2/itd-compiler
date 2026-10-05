@@ -28,7 +28,9 @@ const MAX_TOKENS: usize = 20_000;
 const MAX_SYMBOLS: usize = 5_000;
 const MAX_AST_NODES: usize = 2_000;
 mod inspection;
+mod semantic_trace;
 use inspection::{BytecodeDto, bytecode_dto};
+use semantic_trace::{SemanticTraceDto, trace_dto};
 
 #[derive(Default)]
 struct AppState {
@@ -121,6 +123,7 @@ struct AnalysisDto {
     symbols: Vec<SymbolDto>,
     ast: AstGraphDto,
     semantic_ast: Option<AstGraphDto>,
+    semantic_stack: Option<SemanticTraceDto>,
     bytecode: BytecodeDto,
 }
 
@@ -142,11 +145,9 @@ struct ProjectDto {
 #[tauri::command]
 async fn analyze_source(source: String, virtual_path: String) -> Result<AnalysisDto, CommandError> {
     validate_source(&source, &virtual_path)?;
-    tauri::async_runtime::spawn_blocking(move || {
-        analysis_dto(compiler_core::analyze(&source), &virtual_path)
-    })
-    .await
-    .map_err(|_| internal_error())
+    tauri::async_runtime::spawn_blocking(move || inspect_source(&source, &virtual_path))
+        .await
+        .map_err(|_| internal_error())
 }
 
 #[tauri::command]
@@ -281,6 +282,15 @@ async fn run_project(
     result
 }
 
+fn inspect_source(source: &str, virtual_path: &str) -> AnalysisDto {
+    let (result, trace) =
+        compiler_core::analyze_with_trace(source, compiler_core::semantic::MAX_TRACE_EVENTS);
+    let trace = trace.map(|trace| trace_dto(trace, &result.sources, virtual_path));
+    let mut dto = analysis_dto(result, virtual_path);
+    dto.semantic_stack = trace;
+    dto
+}
+
 fn analysis_dto(mut result: AnalysisResult, virtual_path: &str) -> AnalysisDto {
     let chunk = if result
         .diagnostics
@@ -338,6 +348,7 @@ fn analysis_dto(mut result: AnalysisResult, virtual_path: &str) -> AnalysisDto {
         symbols,
         ast,
         semantic_ast,
+        semantic_stack: None,
         bytecode,
     }
 }
@@ -969,6 +980,46 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn exposes_real_semantic_stack_states_and_unicode_locations() {
+        let dto = inspect_source("let text := \"é\"; 2 + 3 * 4;", "lesson.itd");
+        let trace = dto.semantic_stack.unwrap();
+        assert!(!trace.truncated);
+        assert!(trace.events.iter().any(|event| event.kind == "reduce"));
+        assert_eq!(trace.events.last().unwrap().depth_after, 0);
+        let event = trace
+            .events
+            .iter()
+            .find(|event| event.location.start == 18)
+            .unwrap();
+        assert_eq!(event.location.column, 18);
+        assert_eq!(event.location.file, "lesson.itd");
+        assert!(
+            inspect_source("let := ;", "main.itd")
+                .semantic_stack
+                .is_none()
+        );
+        assert!(
+            inspect_source("missing;", "main.itd")
+                .semantic_stack
+                .is_some()
+        );
+        assert!(
+            inspect_source("", "main.itd")
+                .semantic_stack
+                .unwrap()
+                .events
+                .is_empty()
+        );
+        let source = "1;".repeat(compiler_core::semantic::MAX_TRACE_EVENTS);
+        let trace = inspect_source(&source, "main.itd").semantic_stack.unwrap();
+        assert!(trace.truncated);
+        assert_eq!(
+            trace.events.len(),
+            compiler_core::semantic::MAX_TRACE_EVENTS
+        );
+    }
 
     #[test]
     fn validates_boundaries_and_maps_precise_diagnostics() {

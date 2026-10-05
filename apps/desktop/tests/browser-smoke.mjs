@@ -92,6 +92,33 @@ export default async function smoke(page) {
       location,
       semantic: { inferredType: 'Decimal', sourceType: 'Int', symbol: null },
     })
+    const semanticStack = {
+      truncated: false,
+      events: [
+        {
+          kind: 'push',
+          expression: 0,
+          location,
+          rule: 'literal',
+          depthBefore: 0,
+          depthAfter: 1,
+          popCount: 0,
+          pushed: { expression: 0, typeLabel: 'int', location },
+          conversionType: null,
+        },
+        {
+          kind: 'consume',
+          expression: 0,
+          location,
+          rule: 'expression result',
+          depthBefore: 1,
+          depthAfter: 0,
+          popCount: 1,
+          pushed: null,
+          conversionType: null,
+        },
+      ],
+    }
     window.__semanticMode = 'valid'
     const bytecode = {
       truncated: false,
@@ -112,6 +139,13 @@ export default async function smoke(page) {
             diagnostics: [],
             tokens: [],
             symbols: [],
+            semanticStack:
+              window.__semanticMode === 'unavailable'
+                ? null
+                : {
+                    ...semanticStack,
+                    truncated: window.__semanticMode === 'partial',
+                  },
             ast,
             bytecode,
             semanticAst:

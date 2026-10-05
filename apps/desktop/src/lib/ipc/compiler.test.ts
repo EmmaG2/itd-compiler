@@ -41,3 +41,38 @@ it('preserves native and JavaScript error details', () => {
   ).toBe('NO_PROJECT: Select a project')
   expect(commandErrorMessage(null)).toBe('Falló')
 })
+
+it('preserves semantic trace deltas and absence across native IPC', async () => {
+  vi.stubGlobal('isTauri', true)
+  const location = { file: 'lesson.itd', start: 0, end: 1, line: 1, column: 1 }
+  const semanticStack = {
+    events: [
+      {
+        kind: 'push',
+        expression: 0,
+        location,
+        rule: 'literal',
+        depthBefore: 0,
+        depthAfter: 1,
+        popCount: 0,
+        pushed: { expression: 0, typeLabel: 'int', location },
+        conversionType: null,
+      },
+    ],
+    truncated: true,
+  }
+  const invoke = vi.fn().mockResolvedValue({ semanticStack })
+  vi.stubGlobal('window', { __TAURI_INTERNALS__: { invoke } })
+  expect((await analyzeSource('2;', 'lesson.itd')).semanticStack).toEqual(
+    semanticStack,
+  )
+  expect(invoke).toHaveBeenCalledWith(
+    'analyze_source',
+    { source: '2;', virtualPath: 'lesson.itd' },
+    undefined,
+  )
+  invoke.mockResolvedValue({ semanticStack: null })
+  expect(
+    (await analyzeSource('let := ;', 'lesson.itd')).semanticStack,
+  ).toBeNull()
+})
