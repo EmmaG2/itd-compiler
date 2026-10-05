@@ -36,6 +36,7 @@ Los tokens pospuestos se reconocen para producir un error claro del parser. No i
 - [Módulos](modules.md)
 - [Modelo de objetos](object-model.md)
 - [Bytecode y VM](bytecode.md)
+- [Pila de atributos semánticos](semantic-stack.md)
 
 - [Programa válido](examples/valid.itd): debe superar lexer y, cuando existan, parser y análisis semántico.
 - [Errores léxicos](examples/invalid-lexical.itd): rechazado por el lexer.

@@ -75,4 +75,6 @@ El catálogo de la app carga diez programas con salida esperada: algoritmos, cue
 
 Para comparar los árboles, analiza `let count := 2; let total := count + 0.5dec;`: el semántico muestra la conversión `Int → Decimal` y la resolución de `count`. Esta vista combina la estructura sintáctica con el análisis semántico, sin crear un tercer árbol. Los errores semánticos permiten una vista parcial; los errores léxicos o sintácticos dejan la vista semántica no disponible. Editar o cargar otra fuente limpia ambos resultados.
 
+**Pila semántica** permite recorrer los atributos y reducciones reales del análisis: muestra la pila, los operandos consumidos, conversiones y ubicaciones. Es una inspección de tipos sobre el AST, distinta de la pila de ámbitos y de la VM. La captura está limitada a 4096 eventos sin detener el análisis. Consulte la [guía y demostración de la pila semántica](docs/language/semantic-stack.md).
+
 Detalles: [bytecode y API](docs/language/bytecode.md), [benchmark](docs/language/performance.md) y [verificación de la interfaz](apps/desktop/tests/README.md).
