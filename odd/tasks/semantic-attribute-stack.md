@@ -20,7 +20,7 @@ controls execution. Neither substitutes for this semantic attribute stack.
   complete the feature in one run, preserving existing working-tree changes.
 - Push, PR creation, merge, and remote operations remain unauthorized. Native
   reviews remain subject to the effective mode and candidate-specific consent.
-- Status: SS-01 verified and committed; SS-02 is next.
+- Status: SS-01 and SS-02 verified and committed; SS-03 is next.
 - Repository locator: `odd/tasks/semantic-attribute-stack.md`.
 - Engram topic: `odd/semantic-attribute-stack/tasks`; project: `itd-compiler`.
 - No SDD artifacts or synthetic SDD run.
@@ -213,7 +213,7 @@ document/mirror updates, and delivery decisions.
   - Proof: RED/GREEN core tests; `make test-core`.
   - Rollback: remove the unused stack module, registration, and associated tests.
 
-- [ ] **SS-02 — Stack-driven expression analysis**
+- [x] **SS-02 — Stack-driven expression analysis**
   - Depends on: SS-01. Estimate: 350–550 authored lines.
   - Files: `semantic.rs`, dedicated `tests/semantic_stack.rs`, relevant semantic tests.
   - Route: delegated; multiple non-trivial files and complete evaluator migration.
@@ -271,6 +271,24 @@ document/mirror updates, and delivery decisions.
   - Rollback: remove feature documentation/examples without changing analysis behavior.
 
 ## Evidence ledger and recovery
+
+### SS-02 implementation evidence
+
+- Base: `02b7109` on the prior child; source commit
+  `ed277db956a54c35b70130ab0d3e304639885535` (216 additions + 75 deletions).
+- RED: `make test-core` via Nix failed on the missing evaluator constructor before
+  implementation. GREEN: same command exited 0, 38 tests including five new tests.
+  Internal tests directly verify one result attribute and no residual stack state;
+  integration tests cover operand/call order, errors/coercions, lvalues and imports.
+- Refactor preserves existing rules while extracting Analyzer construction and
+  consuming real attributes. Type::Error behavior is retained; E2099 identifies
+  internal stack invariant failures, not ordinary source errors.
+- `make lint` exited 0 (Clippy and Svelte 0 errors/warnings); final
+  `make format-check` exited 0 after manually correcting new Rust formatting.
+  All commands ran through Nix; logs use `/tmp/semantic-stack-ss02-*.log`.
+- Runtime boundary: core analyze/run and existing VM/reference regression suites.
+- RDD assessment/preflight unavailable (exit 127); due/unreviewed, no approval.
+- Core implementation total so far: 440 authored lines, excluding tracking docs.
 
 ### SS-01 implementation evidence
 
