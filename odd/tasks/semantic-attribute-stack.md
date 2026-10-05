@@ -20,7 +20,7 @@ controls execution. Neither substitutes for this semantic attribute stack.
   complete the feature in one run, preserving existing working-tree changes.
 - Push, PR creation, merge, and remote operations remain unauthorized. Native
   reviews remain subject to the effective mode and candidate-specific consent.
-- Status: SS-01 and SS-02 verified and committed; SS-03 is next.
+- Status: SS-01 through SS-03 verified and committed; SS-04 is next.
 - Repository locator: `odd/tasks/semantic-attribute-stack.md`.
 - Engram topic: `odd/semantic-attribute-stack/tasks`; project: `itd-compiler`.
 - No SDD artifacts or synthetic SDD run.
@@ -224,7 +224,7 @@ document/mirror updates, and delivery decisions.
     lvalues, members, casts, error recovery and imported symbols; `make test-core`.
   - Rollback: restore the former evaluator and its tests; retain SS-01 independently.
 
-- [ ] **SS-03 — Bounded optional semantic trace**
+- [x] **SS-03 — Bounded optional semantic trace**
   - Depends on: SS-02. Estimate: 220–360 authored lines.
   - Files: stack module, `semantic.rs`, `lib.rs`, core trace tests.
   - Route: delegated; cross-file API and instrumentation work.
@@ -271,6 +271,28 @@ document/mirror updates, and delivery decisions.
   - Rollback: remove feature documentation/examples without changing analysis behavior.
 
 ## Evidence ledger and recovery
+
+### SS-03 implementation evidence
+
+- Base: `8a2fddd`; source commit `0b7b4ec0412656da7d01a2cdcdf86b8ee0c8aac9`:
+  428 additions + 32 deletions, four code files. Core total: 900 authored lines.
+- RED: Nix `make test-core` failed on missing trace APIs. GREEN: 43 core tests,
+  including four new integration tests and one forced-recovery unit test.
+- Verified identical plain/traced analysis and bytecode; replayable complete and
+  truncated traces; zero/exact/hard limits; syntax-unavailable and empty-source
+  behavior; zero-delta coercions; imported symbols and bounded type labels.
+- Capture is opt-in, capped inside the core at 4096 events. Labels are generated
+  lazily and limited to 80 characters without expanding recursive function types.
+  Consume events remove actual operands; Reduce events push computed results.
+- Refactor centralized coercion recording. `make lint` passed. Initial final check
+  found one new assert formatting issue; corrected manually, then standalone
+  `make format-check` passed. All runners used Nix; logs: SS03 files under `/tmp`.
+- Slice is 460 authored lines before tracking overhead. One responsibility pass
+  retained capture/API/tests together because an unused trace recorder or an API
+  without actual capture would not deliver the required behavior. No code/tests
+  were compressed. A size exception or revised coherent PR split remains required
+  before remote delivery; none was granted or inferred from chain selection.
+- RDD assessment/preflight remain unavailable (127); due/unreviewed. No PR exists.
 
 ### SS-02 implementation evidence
 
