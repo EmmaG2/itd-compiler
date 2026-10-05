@@ -20,7 +20,7 @@ controls execution. Neither substitutes for this semantic attribute stack.
   complete the feature in one run, preserving existing working-tree changes.
 - Push, PR creation, merge, and remote operations remain unauthorized. Native
   reviews remain subject to the effective mode and candidate-specific consent.
-- Status: implementation starting with SS-01; no task is verified complete yet.
+- Status: SS-01 verified and committed; SS-02 is next.
 - Repository locator: `odd/tasks/semantic-attribute-stack.md`.
 - Engram topic: `odd/semantic-attribute-stack/tasks`; project: `itd-compiler`.
 - No SDD artifacts or synthetic SDD run.
@@ -203,7 +203,7 @@ All tasks are authorized for local implementation but remain pending.
 Each task uses delegated direct implementation; the parent owns scope, checks,
 document/mirror updates, and delivery decisions.
 
-- [ ] **SS-01 — Internal attribute stack and checked operations**
+- [x] **SS-01 — Internal attribute stack and checked operations**
   - Depends on: none. Estimate: 200–320 authored lines.
   - Files: new core `src/semantic_stack.rs`, module registration in `src/lib.rs`,
     in-module tests.
@@ -271,6 +271,24 @@ document/mirror updates, and delivery decisions.
   - Rollback: remove feature documentation/examples without changing analysis behavior.
 
 ## Evidence ledger and recovery
+
+### SS-01 implementation evidence
+
+- Tracker planning commit: `eef2514`; first child based on that commit.
+- Core commit: `0f06dfb8ca1a65ba7ef9f3f7a3d21c89c8993702`, 149 authored additions,
+  two files. Delegated writer; parent inspected stack API and test output.
+- RED: `nix-shell --run 'make test-core'` failed with missing stack types before
+  implementation (Make error 101). GREEN: same command exited 0; four new stack
+  tests and all existing core suites passed. Logs: `/tmp/semantic-stack-ss01-red.log`
+  and `/tmp/semantic-stack-ss01-green.log` (local, non-delivery artifacts).
+- Refactor: retained small checked Vec API. Module is temporarily test-only until
+  SS-02 consumes it, avoiding dead code in the intermediate production build.
+- `git diff --check` and staged whitespace check passed. Runtime boundary: N/A,
+  private stack operations only; native/VM behavior is not changed in SS-01.
+- RDD configured ON; mode lookup, assessment, and preflight attempts are unavailable
+  (CLI missing, exit 127), including inside Nix. Candidate remains due/unreviewed;
+  no risk tier, consent, approval, or reviewed-boundary advance is fabricated.
+- Existing unrelated dirty changes are preserved. Remote delivery remains off.
 
 Planning evidence: CodeGraph mapping, actual Makefile commands, global TDD/RDD
 configuration, current branch/status, and the existing dual-tree task document.
