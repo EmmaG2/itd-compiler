@@ -20,7 +20,7 @@ controls execution. Neither substitutes for this semantic attribute stack.
   complete the feature in one run, preserving existing working-tree changes.
 - Push, PR creation, merge, and remote operations remain unauthorized. Native
   reviews remain subject to the effective mode and candidate-specific consent.
-- Status: SS-01 through SS-03 verified and committed; SS-04 is next.
+- Status: SS-01 through SS-04 verified and committed; SS-05 is next.
 - Repository locator: `odd/tasks/semantic-attribute-stack.md`.
 - Engram topic: `odd/semantic-attribute-stack/tasks`; project: `itd-compiler`.
 - No SDD artifacts or synthetic SDD run.
@@ -235,7 +235,7 @@ document/mirror updates, and delivery decisions.
     `make test-core`.
   - Rollback: remove trace APIs and capture while retaining functional stack analysis.
 
-- [ ] **SS-04 — Native inspection and IPC contract**
+- [x] **SS-04 — Native inspection and IPC contract**
   - Depends on: SS-03. Estimate: 180–300 authored lines.
   - Files: native `lib.rs` and optional inspection module; `types/compiler.ts`;
     actual IPC test fixtures and `tests/browser-smoke.mjs` fixture.
@@ -271,6 +271,26 @@ document/mirror updates, and delivery decisions.
   - Rollback: remove feature documentation/examples without changing analysis behavior.
 
 ## Evidence ledger and recovery
+
+### SS-04 implementation evidence
+
+- Base: `15289ff`; source commit `a47e7591303710f334f420551c060fe81eae770c`:
+  245 additions + 5 deletions across five code/fixture files.
+- RED: Nix `make test` failed on missing native inspect_source. Two intermediate
+  IPC mock failures (missing window and optional invoke argument) were fixed;
+  final `make test` exited 0: all core suites, 10 native tests, 12 frontend tests.
+- `make compile` passed (existing >500 kB Vite chunk warning); final
+  `make format-check` passed. Native tests exercise real compiler traces, Unicode
+  positions, semantic/syntax/empty states, event/type bounds and conversions.
+- Refactor isolates bounded projection in native semantic_trace.rs while retaining
+  analysis_dto compatibility. No dependencies, source limits, permissions, or
+  ProjectDto changes. Frontend IPC tests verify transport, not native WebView UI.
+- Parent ran the existing Make formatter after all writers paused, then verified
+  the 29 pre-existing tracked dirty paths retained byte-identical diffs. No user
+  changes were staged. Logs: `/tmp/ss04-red.log`, `/tmp/ss04-green3.log`,
+  `/tmp/ss04-compile.log`; earlier failed logs are superseded, not hidden.
+- RDD unavailable (assessment/preflight exit 127), due/unreviewed. Implementation
+  running total: 1,150 authored lines, excluding tracking docs.
 
 ### SS-03 implementation evidence
 
