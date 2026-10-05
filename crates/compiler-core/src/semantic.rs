@@ -6,6 +6,7 @@ use crate::{
         Literal, MethodDecl, Program, Stmt, TraitDecl, TypeName, UnaryOp, VariableDecl, Visibility,
     },
     diagnostic::{Diagnostic, Label},
+    semantic_stack::{Checkpoint, SemanticAttribute, SemanticStack, StackError},
     source::Span,
 };
 
@@ -102,61 +103,11 @@ pub fn analyze(program: &Program) -> SemanticResult {
 
 #[must_use]
 pub fn analyze_with_imports(program: &Program, imports: &[ImportedSymbol]) -> SemanticResult {
-    let mut analyzer = Analyzer {
-        scopes: vec![HashMap::new()],
-        symbols: Vec::new(),
-        resolutions: HashMap::new(),
-        types: HashMap::new(),
-        coercions: HashMap::new(),
-        diagnostics: Vec::new(),
-        classes: HashMap::new(),
-        traits: HashMap::new(),
-        expected_return: None,
-        loop_depth: 0,
-        current_class: None,
-    };
-    analyzer.declare(
-        "print",
-        SymbolKind::Function,
-        Type::Function(vec![Type::Str], Box::new(Type::Void)),
-        false,
-        true,
-        Span::new(crate::source::SourceId(0), 0, 0),
-    );
-    for (name, parameters, result) in [
-        ("round", vec![Type::Decimal, Type::Int], Type::Decimal),
-        ("scale", vec![Type::Decimal], Type::Int),
-        ("to_string", vec![Type::IntegerOrDecimal], Type::Str),
-    ] {
-        analyzer.declare(
-            name,
-            SymbolKind::Function,
-            Type::Function(parameters, Box::new(result)),
-            false,
-            true,
-            Span::new(crate::source::SourceId(0), 0, 0),
-        );
-    }
-    for import in imports {
-        if let Some((name, class)) = &import.class {
-            analyzer.classes.insert(name.clone(), class.clone());
-        }
-        if let Some((name, trait_info)) = &import.trait_info {
-            analyzer.traits.insert(name.clone(), trait_info.clone());
-        }
-        analyzer.declare(
-            &import.name,
-            SymbolKind::Variable,
-            import.ty.clone(),
-            false,
-            true,
-            import.declaration_span,
-        );
-    }
-    analyzer.program(program)
+    Analyzer::new(imports).program(program)
 }
 
 struct Analyzer {
+    stack: SemanticStack,
     scopes: Vec<HashMap<String, SymbolId>>,
     symbols: Vec<Symbol>,
     resolutions: HashMap<ExprId, SymbolId>,
@@ -171,6 +122,62 @@ struct Analyzer {
 }
 
 impl Analyzer {
+    fn new(imports: &[ImportedSymbol]) -> Self {
+        let mut analyzer = Analyzer {
+            stack: SemanticStack::default(),
+            scopes: vec![HashMap::new()],
+            symbols: Vec::new(),
+            resolutions: HashMap::new(),
+            types: HashMap::new(),
+            coercions: HashMap::new(),
+            diagnostics: Vec::new(),
+            classes: HashMap::new(),
+            traits: HashMap::new(),
+            expected_return: None,
+            loop_depth: 0,
+            current_class: None,
+        };
+        analyzer.declare(
+            "print",
+            SymbolKind::Function,
+            Type::Function(vec![Type::Str], Box::new(Type::Void)),
+            false,
+            true,
+            Span::new(crate::source::SourceId(0), 0, 0),
+        );
+        for (name, parameters, result) in [
+            ("round", vec![Type::Decimal, Type::Int], Type::Decimal),
+            ("scale", vec![Type::Decimal], Type::Int),
+            ("to_string", vec![Type::IntegerOrDecimal], Type::Str),
+        ] {
+            analyzer.declare(
+                name,
+                SymbolKind::Function,
+                Type::Function(parameters, Box::new(result)),
+                false,
+                true,
+                Span::new(crate::source::SourceId(0), 0, 0),
+            );
+        }
+        for import in imports {
+            if let Some((name, class)) = &import.class {
+                analyzer.classes.insert(name.clone(), class.clone());
+            }
+            if let Some((name, trait_info)) = &import.trait_info {
+                analyzer.traits.insert(name.clone(), trait_info.clone());
+            }
+            analyzer.declare(
+                &import.name,
+                SymbolKind::Variable,
+                import.ty.clone(),
+                false,
+                true,
+                import.declaration_span,
+            );
+        }
+        analyzer
+    }
+
     fn program(mut self, program: &Program) -> SemanticResult {
         for item in &program.items {
             match item {
@@ -225,6 +232,13 @@ impl Analyzer {
                 Item::Trait(_) | Item::ExportTrait(_) | Item::Module(_) | Item::Use(_) => {}
                 Item::Stmt(stmt) => self.statement(stmt),
             }
+        }
+        if !self.stack.is_empty() {
+            self.type_error(
+                "E2099",
+                "pila semántica desbalanceada",
+                Span::new(crate::source::SourceId(0), 0, 0),
+            );
         }
         SemanticResult {
             symbols: self.symbols,
@@ -665,11 +679,46 @@ impl Analyzer {
     }
 
     fn expression(&mut self, expression: &Expr) -> Type {
+        let frame = self.stack.checkpoint();
+        self.evaluate(expression);
+        match self.stack.finish(frame, expression.id) {
+            Ok(attribute) => attribute.ty,
+            Err(error) => {
+                self.stack_failure(frame, expression, error);
+                Type::Error
+            }
+        }
+    }
+
+    fn stack_failure(&mut self, frame: Checkpoint, expression: &Expr, error: StackError) {
+        self.type_error(
+            "E2099",
+            format!("invariante de pila semántica: {error:?}"),
+            expression.span,
+        );
+        if self.stack.recover(frame).is_err() {
+            self.type_error("E2099", "checkpoint semántico inválido", expression.span);
+        }
+    }
+
+    fn operand(&mut self, frame: Checkpoint, expression: &Expr) -> Type {
+        match self.stack.pop(frame, expression.id) {
+            Ok(attribute) => attribute.ty,
+            Err(error) => {
+                self.stack_failure(frame, expression, error);
+                Type::Error
+            }
+        }
+    }
+
+    fn evaluate(&mut self, expression: &Expr) {
+        let frame = self.stack.checkpoint();
         let ty = match &expression.kind {
             ExprKind::Literal(literal) => literal_type(literal),
             ExprKind::Name(name) => self.name(expression.id, name, expression.span),
             ExprKind::Unary { op, operand } => {
-                let operand = self.expression(operand);
+                self.evaluate(operand);
+                let operand = self.operand(frame, operand);
                 match op {
                     UnaryOp::Not if operand == Type::Bool => Type::Bool,
                     UnaryOp::Plus | UnaryOp::Minus if numeric(&operand) => operand,
@@ -685,8 +734,10 @@ impl Analyzer {
                 }
             }
             ExprKind::Binary { left, op, right } => {
-                let left_type = self.expression(left);
-                let right_type = self.expression(right);
+                self.evaluate(left);
+                self.evaluate(right);
+                let right_type = self.operand(frame, right);
+                let left_type = self.operand(frame, left);
                 self.binary(
                     *op,
                     (left.id, left_type),
@@ -694,12 +745,15 @@ impl Analyzer {
                     expression.span,
                 )
             }
-            ExprKind::Assign { target, value } => self.assignment(target, value, expression.span),
+            ExprKind::Assign { target, value } => {
+                self.assignment(frame, target, value, expression.span)
+            }
             ExprKind::Cast {
                 expression: value,
                 type_name,
             } => {
-                let from = self.expression(value);
+                self.evaluate(value);
+                let from = self.operand(frame, value);
                 let to = self.resolve_type(type_name);
                 if from == to || numeric(&from) && numeric(&to) {
                     to
@@ -715,11 +769,17 @@ impl Analyzer {
                 }
             }
             ExprKind::Call { callee, arguments } => {
-                let callee_type = self.expression(callee);
-                let argument_types: Vec<_> = arguments
+                self.evaluate(callee);
+                for argument in arguments {
+                    self.evaluate(argument);
+                }
+                let mut argument_types: Vec<_> = arguments
                     .iter()
-                    .map(|argument| self.expression(argument))
+                    .rev()
+                    .map(|argument| self.operand(frame, argument))
                     .collect();
+                argument_types.reverse();
+                let callee_type = self.operand(frame, callee);
                 if let Type::ClassObject(name) = callee_type {
                     let constructor = self
                         .classes
@@ -753,15 +813,18 @@ impl Analyzer {
                 if let ExprKind::Name(module) = &object.kind
                     && self.lookup(&format!("{module}.{name}")).is_some()
                 {
-                    let ty = self.name(expression.id, &format!("{module}.{name}"), expression.span);
-                    return self.record_type(expression, ty);
+                    self.name(expression.id, &format!("{module}.{name}"), expression.span)
+                } else {
+                    self.evaluate(object);
+                    let object_type = self.operand(frame, object);
+                    self.member(&object_type, name, expression.span)
                 }
-                let object_type = self.expression(object);
-                self.member(&object_type, name, expression.span)
             }
             ExprKind::Index { object, index } => {
-                self.expression(object);
-                self.expression(index);
+                self.evaluate(object);
+                self.evaluate(index);
+                self.operand(frame, index);
+                self.operand(frame, object);
                 self.type_error(
                     "E2015",
                     "la indexación todavía no está disponible",
@@ -770,12 +833,12 @@ impl Analyzer {
                 Type::Error
             }
         };
-        self.record_type(expression, ty)
-    }
-
-    fn record_type(&mut self, expression: &Expr, ty: Type) -> Type {
         self.types.insert(expression.id, ty.clone());
-        ty
+        self.stack.push(SemanticAttribute {
+            expression: expression.id,
+            ty,
+            span: expression.span,
+        });
     }
 
     fn check_arguments(
@@ -858,10 +921,12 @@ impl Analyzer {
         symbol.ty.clone()
     }
 
-    fn assignment(&mut self, target: &Expr, value: &Expr, span: Span) -> Type {
-        let value_type = self.expression(value);
+    fn assignment(&mut self, frame: Checkpoint, target: &Expr, value: &Expr, span: Span) -> Type {
+        self.evaluate(value);
         if let ExprKind::Member { object, name } = &target.kind {
-            let object_type = self.expression(object);
+            self.evaluate(object);
+            let object_type = self.operand(frame, object);
+            let value_type = self.operand(frame, value);
             let target_type = self.member(&object_type, name, target.span);
             let class_name = match &object_type {
                 Type::Class(name) | Type::ClassObject(name) => Some(name),
@@ -884,6 +949,7 @@ impl Analyzer {
             self.types.insert(target.id, target_type.clone());
             return target_type;
         }
+        let value_type = self.operand(frame, value);
         let ExprKind::Name(name) = &target.kind else {
             self.type_error(
                 "E2004",
@@ -1206,5 +1272,27 @@ fn always_returns(statement: &Stmt) -> bool {
             ..
         } => always_returns(then_branch) && always_returns(else_branch),
         _ => false,
+    }
+}
+
+#[cfg(test)]
+mod stack_tests {
+    use super::*;
+
+    #[test]
+    fn evaluator_produces_one_attribute_and_recovers_without_leaking() {
+        let parsed = crate::analyze("2 + 3 * 4; missing + true; 7;");
+        let mut analyzer = Analyzer::new(&[]);
+        for item in &parsed.program.items {
+            let Item::Stmt(Stmt::Expression { expression, .. }) = item else {
+                panic!("expected expression");
+            };
+            let frame = analyzer.stack.checkpoint();
+            analyzer.evaluate(expression);
+            let attribute = analyzer.stack.finish(frame, expression.id).unwrap();
+            assert_eq!(attribute.ty, analyzer.types[&expression.id]);
+            assert!(analyzer.stack.is_empty());
+        }
+        assert!(analyzer.diagnostics.iter().any(|d| d.code == "E2002"));
     }
 }
