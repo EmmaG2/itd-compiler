@@ -1,6 +1,20 @@
 import assert from 'node:assert/strict'
 
 export default async function smoke(page) {
+  async function assertStackTabLayout() {
+    await page.getByRole('tab', { name: 'Pila semántica', exact: true }).click()
+    const tabs = await page
+      .getByRole('tablist', { name: 'Resultados del análisis', exact: true })
+      .boundingBox()
+    const content = await page
+      .getByRole('tabpanel', { name: 'Pila semántica', exact: true })
+      .boundingBox()
+    assert(
+      tabs && content && tabs.y + tabs.height <= content.y,
+      'Wrapped tabs must not overlap the inspector',
+    )
+  }
+
   await page.addInitScript(() => {
     window.isTauri = true
     window.__calls = []
@@ -92,31 +106,38 @@ export default async function smoke(page) {
       location,
       semantic: { inferredType: 'Decimal', sourceType: 'Int', symbol: null },
     })
+    const attribute = (expression) => ({
+      expression,
+      typeLabel: 'int',
+      location,
+    })
+    const stackEvent = (
+      kind,
+      expression,
+      depthBefore,
+      depthAfter,
+      popCount,
+      pushed,
+    ) => ({
+      kind,
+      expression,
+      location,
+      rule: kind === 'reduce' ? 'binary' : kind,
+      depthBefore,
+      depthAfter,
+      popCount,
+      pushed,
+      conversionType: null,
+    })
     const semanticStack = {
       truncated: false,
       events: [
-        {
-          kind: 'push',
-          expression: 0,
-          location,
-          rule: 'literal',
-          depthBefore: 0,
-          depthAfter: 1,
-          popCount: 0,
-          pushed: { expression: 0, typeLabel: 'int', location },
-          conversionType: null,
-        },
-        {
-          kind: 'consume',
-          expression: 0,
-          location,
-          rule: 'expression result',
-          depthBefore: 1,
-          depthAfter: 0,
-          popCount: 1,
-          pushed: null,
-          conversionType: null,
-        },
+        stackEvent('push', 0, 0, 1, 0, attribute(0)),
+        stackEvent('push', 1, 1, 2, 0, attribute(1)),
+        stackEvent('consume', 1, 2, 1, 1, null),
+        stackEvent('consume', 0, 1, 0, 1, null),
+        stackEvent('reduce', 2, 0, 1, 0, attribute(2)),
+        stackEvent('consume', 2, 1, 0, 1, null),
       ],
     }
     window.__semanticMode = 'valid'
@@ -217,6 +238,33 @@ export default async function smoke(page) {
       'class BankAccount',
     ),
   )
+  await page.getByRole('tab', { name: 'Pila semántica', exact: true }).click()
+  await page.getByText('Paso 0 / 6', { exact: true }).waitFor()
+  await assertStackTabLayout()
+  await page
+    .getByRole('button', { name: 'Paso siguiente', exact: true })
+    .click()
+  await page.getByText('Paso 1 / 6', { exact: true }).waitFor()
+  await page.getByRole('list', { name: 'Pila actual', exact: true }).waitFor()
+  await page
+    .getByRole('button', { name: 'Ver código · 1:1', exact: true })
+    .click()
+  assert.equal(
+    await page
+      .locator('.cm-content')
+      .evaluate((editor) => editor.contains(document.activeElement)),
+    true,
+  )
+  await page.getByRole('button', { name: 'Ir al final', exact: true }).click()
+  await page.getByText('Pila vacía', { exact: true }).waitFor()
+  await page.getByRole('button', { name: 'Paso anterior', exact: true }).click()
+  await page.getByRole('list', { name: 'Pila actual', exact: true }).waitFor()
+  await page
+    .getByText('Atributos consumidos: int (#0), int (#1)', { exact: true })
+    .waitFor()
+  await page.getByText('Resultado: int (#2)', { exact: true }).waitFor()
+  await page.getByRole('button', { name: 'Analizar', exact: true }).click()
+  await page.getByText('Paso 0 / 6', { exact: true }).waitFor()
   await page.getByRole('tab', { name: 'AST', exact: true }).click()
   const treeBounds = await page
     .getByRole('tabpanel', { name: 'AST', exact: true })
@@ -326,6 +374,13 @@ export default async function smoke(page) {
 
   const editor = page.locator('.cm-content')
   await editor.fill('let changed := 1;')
+  await page.getByRole('tab', { name: 'Pila semántica', exact: true }).click()
+  await page
+    .getByText(
+      'Sin traza semántica. Analiza el código del editor sin errores léxicos o sintácticos.',
+      { exact: true },
+    )
+    .waitFor()
   await page.getByRole('tab', { name: 'AST', exact: true }).click()
   await page.getByRole('tab', { name: 'Semántico', exact: true }).click()
   await page
@@ -383,6 +438,8 @@ export default async function smoke(page) {
   await page.getByRole('button', { name: 'Analizar', exact: true }).click()
   await page.getByRole('tab', { name: 'AST', exact: true }).click()
   await page.setViewportSize({ width: 390, height: 844 })
+  await assertStackTabLayout()
+  await page.getByRole('tab', { name: 'AST', exact: true }).click()
   await page
     .getByRole('button', { name: 'Ampliar árbol sintáctico', exact: true })
     .click()
@@ -399,6 +456,7 @@ export default async function smoke(page) {
     .click()
   return {
     passed: [
+      'semantic stack replay, navigation, reset and invalidation',
       'two trees and semantic metadata',
       'partial and unavailable semantics',
       'both trees invalidated',

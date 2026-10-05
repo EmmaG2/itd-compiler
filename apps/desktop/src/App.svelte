@@ -20,6 +20,7 @@
   import Editor from './features/editor/Editor.svelte'
   import AstGraph from './features/ast/AstGraph.svelte'
   import BytecodeView from './features/bytecode/BytecodeView.svelte'
+  import SemanticStack from './features/semantic-stack/SemanticStack.svelte'
   import { examples } from './features/examples/catalog'
   import {
     analyzeSource,
@@ -61,6 +62,7 @@
   let symbols = $state<SymbolDto[]>([])
   let ast = $state<AnalysisDto['ast']>({ nodes: [], truncated: false })
   let semanticAst = $state<AnalysisDto['semanticAst']>(null)
+  let semanticStack = $state<AnalysisDto['semanticStack']>(null)
   let treeView = $state('syntax')
   const emptyGraph: AnalysisDto['ast'] = { nodes: [], truncated: false }
   let output = $state(strings.noOutput)
@@ -80,6 +82,7 @@
     symbols = []
     ast = { nodes: [], truncated: false }
     semanticAst = null
+    semanticStack = null
     bytecode = { rows: [], truncated: false }
     reveal = null
     output = strings.noOutput
@@ -142,6 +145,7 @@
       symbols = result.symbols
       ast = result.ast
       semanticAst = result.semanticAst
+      semanticStack = result.semanticStack
       bytecode = result.bytecode
       setStatus(
         result.diagnostics.some((item) => item.severity === 'error')
@@ -182,6 +186,7 @@
       if (project) {
         ast = { nodes: [], truncated: false }
         semanticAst = null
+        semanticStack = null
         tokens = []
         symbols = []
       }
@@ -236,6 +241,7 @@
       resultScope = 'project'
       ast = { nodes: [], truncated: false }
       semanticAst = null
+      semanticStack = null
       bytecode = { rows: [], truncated: false }
       tokens = []
       symbols = []
@@ -412,14 +418,26 @@
       </Card.Header>
       <Card.Content>
         <Tabs.Root bind:value={activeTab} class="gap-4">
-          <Tabs.List class="w-full" aria-label={strings.analysisResults}>
+          <Tabs.List
+            class="w-full flex-wrap"
+            style="height: auto; min-height: 2.25rem"
+            aria-label={strings.analysisResults}
+          >
             <Tabs.Trigger value="diagnostics"
               >{strings.diagnostics}</Tabs.Trigger
             >
             <Tabs.Trigger value="symbols">{strings.symbols}</Tabs.Trigger>
             <Tabs.Trigger value="ast">{strings.ast}</Tabs.Trigger>
+            <Tabs.Trigger value="semantic-stack"
+              >{strings.semanticStack}</Tabs.Trigger
+            >
             <Tabs.Trigger value="bytecode">{strings.bytecode}</Tabs.Trigger>
           </Tabs.List>
+          <Tabs.Content value="semantic-stack">
+            {#key semanticStack}
+              <SemanticStack trace={semanticStack} onSelect={navigate} />
+            {/key}
+          </Tabs.Content>
           <Tabs.Content value="diagnostics">
             <ScrollArea class="h-[max(280px,calc(min(60vh,640px)-52px))]">
               {#if diagnostics.length}
