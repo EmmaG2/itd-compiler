@@ -209,8 +209,6 @@ export default async function smoke(page) {
             })
           return { output: '0.16\n', diagnostics: [], bytecode }
         }
-        if (command === 'run_project')
-          return { output: '25.50\n', diagnostics: [], bytecode }
         if (command === 'cancel_run') {
           window.__finishRun?.()
           return
@@ -221,6 +219,25 @@ export default async function smoke(page) {
   })
   await page.setViewportSize({ width: 1440, height: 1000 })
   await page.goto('http://127.0.0.1:1420')
+  assert.equal(await page.locator('header').count(), 0)
+  assert.equal(await page.getByText('Listo', { exact: true }).count(), 0)
+  assert.equal(await page.getByLabel('Módulo inicial').count(), 0)
+  for (const name of [
+    'Abrir proyecto',
+    'Analizar proyecto',
+    'Ejecutar proyecto',
+  ]) {
+    assert.equal(
+      await page.getByRole('button', { name, exact: true }).count(),
+      0,
+    )
+  }
+  for (const name of ['Analizar', 'Ejecutar', 'Detener']) {
+    assert.equal(
+      await page.getByRole('button', { name, exact: true }).count(),
+      1,
+    )
+  }
   await page
     .getByRole('combobox', { name: 'Ejemplos', exact: true })
     .selectOption('bank-account')
@@ -438,6 +455,18 @@ export default async function smoke(page) {
   await page.getByRole('button', { name: 'Analizar', exact: true }).click()
   await page.getByRole('tab', { name: 'AST', exact: true }).click()
   await page.setViewportSize({ width: 390, height: 844 })
+  assert.equal(await page.locator('header').count(), 0)
+  assert.equal(await page.getByLabel('Módulo inicial').count(), 0)
+  for (const name of [
+    'Abrir proyecto',
+    'Analizar proyecto',
+    'Ejecutar proyecto',
+  ]) {
+    assert.equal(
+      await page.getByRole('button', { name, exact: true }).count(),
+      0,
+    )
+  }
   await assertStackTabLayout()
   await page.getByRole('tab', { name: 'AST', exact: true }).click()
   await page
@@ -456,6 +485,7 @@ export default async function smoke(page) {
     .click()
   return {
     passed: [
+      'redundant header and project controls absent at desktop and mobile widths',
       'semantic stack replay, navigation, reset and invalidation',
       'two trees and semantic metadata',
       'partial and unavailable semantics',

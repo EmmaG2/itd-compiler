@@ -3,20 +3,11 @@
   import { Input } from '$lib/components/ui/input'
   import { Badge } from '$lib/components/ui/badge'
   import { Label } from '$lib/components/ui/label'
-  import { Separator } from '$lib/components/ui/separator'
   import { ScrollArea } from '$lib/components/ui/scroll-area'
   import * as Card from '$lib/components/ui/card'
   import * as Tabs from '$lib/components/ui/tabs'
   import * as Table from '$lib/components/ui/table'
-  import {
-    CodeXml,
-    Play,
-    Square,
-    FolderOpen,
-    ScanLine,
-    Terminal,
-    FileCode,
-  } from '@lucide/svelte'
+  import { Play, Square, ScanLine, Terminal, FileCode } from '@lucide/svelte'
   import Editor from './features/editor/Editor.svelte'
   import AstGraph from './features/ast/AstGraph.svelte'
   import BytecodeView from './features/bytecode/BytecodeView.svelte'
@@ -25,11 +16,7 @@
   import {
     analyzeSource,
     cancelRun,
-    openProject,
-    runProject,
-    analyzeProject as analyzeProjectRequest,
     runSource,
-    selectProjectDirectory,
     commandErrorMessage,
   } from '$lib/ipc/compiler'
   import strings from './locales/es.json'
@@ -50,13 +37,9 @@
     examples.find((example) => example.id === exampleId)!,
   )
   let replaceDialog: HTMLDialogElement
-  let projectLocation = $state<LocationDto | null>(null)
   let bytecode = $state<BytecodeDto>({ rows: [], truncated: false })
-  let resultScope = $state<'source' | 'project'>('source')
   let virtualPath = $state('main.itd')
-  let entryModule = $state('main')
   let status = $state<Status>('ready')
-  let statusText = $state(strings.ready)
   let diagnostics = $state<DiagnosticDto[]>([])
   let tokens = $state<TokenDto[]>([])
   let symbols = $state<SymbolDto[]>([])
@@ -86,22 +69,16 @@
     bytecode = { rows: [], truncated: false }
     reveal = null
     output = strings.noOutput
-    projectLocation = null
     if (!busy) setStatus('ready')
   }
-  function setStatus(value: Status, text = strings[value]) {
+  function setStatus(value: Status) {
     status = value
-    statusText = text
   }
   function showDiagnostics(values: DiagnosticDto[]) {
     diagnostics = values
     activeTab = 'diagnostics'
   }
   function navigate(location: LocationDto) {
-    if (resultScope === 'project') {
-      projectLocation = location
-      return
-    }
     reveal = { ...location }
   }
   function loadExample() {
@@ -139,7 +116,6 @@
         setStatus('ready')
         return
       }
-      resultScope = 'source'
       diagnostics = result.diagnostics
       tokens = result.tokens
       symbols = result.symbols
@@ -160,35 +136,20 @@
       fail(error)
     }
   }
-  async function run(project = false) {
+  async function run() {
     if (busy) return
     const requestRevision = revision
     const requestPath = virtualPath
-    const requestEntry = entryModule
     executionId = crypto.randomUUID()
     setStatus('running')
     output = strings.noOutput
     diagnostics = []
     bytecode = { rows: [], truncated: false }
     try {
-      const result = project
-        ? await runProject(requestEntry, executionId)
-        : await runSource(source, requestPath, executionId)
-      if (
-        requestRevision !== revision ||
-        requestPath !== virtualPath ||
-        requestEntry !== entryModule
-      ) {
+      const result = await runSource(source, requestPath, executionId)
+      if (requestRevision !== revision || requestPath !== virtualPath) {
         setStatus('ready')
         return
-      }
-      resultScope = project ? 'project' : 'source'
-      if (project) {
-        ast = { nodes: [], truncated: false }
-        semanticAst = null
-        semanticStack = null
-        tokens = []
-        symbols = []
       }
       bytecode = result.bytecode
       output = result.output || strings.noOutput
@@ -216,50 +177,6 @@
       fail(error)
     }
   }
-  async function chooseProject() {
-    if (busy) return
-    try {
-      const selected = await selectProjectDirectory()
-      if (typeof selected !== 'string') return
-      await openProject(selected)
-      invalidate(source)
-      setStatus('ready', strings.projectReady)
-    } catch (error: unknown) {
-      fail(error)
-    }
-  }
-  async function analyzeProject() {
-    if (busy) return
-    const requestRevision = revision
-    setStatus('analyzing')
-    try {
-      const result = await analyzeProjectRequest(entryModule)
-      if (requestRevision !== revision) {
-        setStatus('ready')
-        return
-      }
-      resultScope = 'project'
-      ast = { nodes: [], truncated: false }
-      semanticAst = null
-      semanticStack = null
-      bytecode = { rows: [], truncated: false }
-      tokens = []
-      symbols = []
-      showDiagnostics(result.diagnostics)
-      output = result.modules.join('\n') || strings.noOutput
-      setStatus(
-        result.diagnostics.some((item) => item.severity === 'error')
-          ? 'failed'
-          : 'ready',
-      )
-    } catch (error: unknown) {
-      if (requestRevision !== revision) {
-        setStatus('ready')
-        return
-      }
-      fail(error)
-    }
-  }
   function fail(error: unknown) {
     output = commandErrorMessage(error)
     setStatus('failed')
@@ -268,22 +185,6 @@
 
 <svelte:head><title>{strings.title}</title></svelte:head>
 <div class="mx-auto flex min-h-screen max-w-[1600px] flex-col gap-6 p-4 sm:p-6">
-  <header class="flex items-center justify-between gap-4">
-    <div class="flex items-center gap-3">
-      <div
-        class="flex size-10 items-center justify-center rounded-lg border bg-card"
-      >
-        <CodeXml class="size-5" />
-      </div>
-      <h1 class="text-lg font-semibold tracking-tight">{strings.title}</h1>
-    </div>
-    <div role="status" aria-live="polite">
-      <Badge variant={status === 'failed' ? 'destructive' : 'secondary'}
-        >{statusText}</Badge
-      >
-    </div>
-  </header>
-
   <Card.Root size="sm">
     <Card.Content
       class="flex flex-wrap items-end gap-4"
@@ -302,32 +203,11 @@
         <Button onclick={analyze} disabled={busy}
           ><ScanLine />{strings.analyze}</Button
         >
-        <Button variant="secondary" onclick={() => run()} disabled={busy}
+        <Button variant="secondary" onclick={run} disabled={busy}
           ><Play />{strings.run}</Button
         >
         <Button variant="outline" onclick={stop} disabled={!executionId}
           ><Square />{strings.stop}</Button
-        >
-      </div>
-      <Separator orientation="vertical" class="hidden h-9 lg:block" />
-      <div class="grid min-w-40 flex-1 gap-2">
-        <Label for="entry-module">{strings.entryModule}</Label>
-        <Input
-          id="entry-module"
-          bind:value={entryModule}
-          disabled={busy}
-          oninput={() => invalidate(source)}
-        />
-      </div>
-      <div class="flex flex-wrap gap-2">
-        <Button variant="outline" onclick={chooseProject} disabled={busy}
-          ><FolderOpen />{strings.openProject}</Button
-        >
-        <Button variant="outline" onclick={analyzeProject} disabled={busy}
-          >{strings.analyzeProject}</Button
-        >
-        <Button variant="secondary" onclick={() => run(true)} disabled={busy}
-          >{strings.runProject}</Button
         >
       </div>
     </Card.Content>
@@ -575,12 +455,6 @@
         ></Card.Header
       >
       <Card.Content>
-        {#if projectLocation}<p class="mb-3 text-sm">
-            <strong
-              >{strings.projectLocation}:
-            </strong>{projectLocation.file}:{projectLocation.line}:{projectLocation.column}<br
-            />{strings.projectSourceHint}
-          </p>{/if}
         <ScrollArea class="h-40 rounded-md border bg-background">
           <pre
             class="whitespace-pre-wrap break-words p-4 font-mono text-sm leading-relaxed"
