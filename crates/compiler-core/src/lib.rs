@@ -10,6 +10,8 @@ pub mod project;
 mod reference;
 pub mod runtime;
 pub mod semantic;
+#[cfg(test)]
+mod semantic_stack;
 pub mod source;
 mod vm;
 
