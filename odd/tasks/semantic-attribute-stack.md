@@ -16,21 +16,22 @@ controls execution. Neither substitutes for this semantic attribute stack.
   `feature-branch-chain` for delivery.
 - Authorized: scoped local implementation, feature branches, tests, documentation,
   ODD work-unit commits, and the full Engram recovery mirror.
-- Current step: implement all six tasks under the user's explicit request to
-  complete the feature in one run, preserving existing working-tree changes.
+- Current step: local implementation and documentation are committed; native
+  WebView demonstration and native review remain unverified.
 - Push, PR creation, merge, and remote operations remain unauthorized. Native
   reviews remain subject to the effective mode and candidate-specific consent.
-- Status: SS-01 through SS-05 implemented, functionally verified, and committed;
-  native WebView inspection remains pending. SS-06 documentation is next.
+- Status: SS-01 through SS-05 complete; SS-06 documentation and automated checks
+  pass, but its manual native acceptance check remains pending.
 - Repository locator: `odd/tasks/semantic-attribute-stack.md`.
 - Engram topic: `odd/semantic-attribute-stack/tasks`; project: `itd-compiler`.
 - No SDD artifacts or synthetic SDD run.
-- No code changes or functional test results are claimed by this plan.
+- Implementation and verification evidence is recorded below; no remote delivery
+  or native visual proof is claimed.
 
 ## Baseline and verified evidence
 
 - Planning date: 2026-10-04.
-- Current branch: `feat/dual-tree-visualization`.
+- Current branch: `feat/semantic-attribute-stack-06-docs`.
 - Verified dependency baseline: `ebc0ef284b916b0575b35e8d843656d42d959c6d`.
   Local `main` is at `32fd5a0` and lacks this dependency; remote state is unverified.
 - Preserve the existing dual-tree task document and all unrelated working-tree
@@ -123,8 +124,9 @@ Existing native source/token/symbol/graph limits remain unchanged.
   confirmed by the user for this feature. Do not ask for the chain choice again.
 - Implementation forecast: 1,290–2,090 authored additions plus deletions, generated
   files excluded. Add actual planning-document overhead to the delivery total.
-- Running committed count: 0. Proposed slices are listed below; actual commit
-  boundaries, PR numbers, measured counts, and review receipts remain pending.
+- Running source work-unit count: 1,800 authored additions plus deletions
+  (SS-01 through SS-06), excluding ODD tracking documents. No PR numbers or
+  review receipts exist.
 - The 400-line task size is advisory, not an acceptance gate or reason to omit tests,
   minify, or split a coherent expression migration artificially.
 - Future implementation tasks close with Conventional Commit work units containing
@@ -136,7 +138,7 @@ Existing native source/token/symbol/graph limits remain unchanged.
 
 ### Branch and dependency chain
 
-Create the local tracker from the exact verified dependency commit, not from dirty
+The local tracker was created from the exact verified dependency commit, not from dirty
 working-tree contents. The dual-tree dependency is an explicit exception to the
 usual tracker-from-main starting point; it avoids mixing the existing feature
 into semantic-stack review slices.
@@ -152,8 +154,8 @@ feat/dual-tree-visualization @ ebc0ef2  (prerequisite)
               feat/semantic-attribute-stack-06-docs
 ```
 
-Each indentation level is based on its immediate parent. These branches are
-planned, not created. Keep the planning-document work unit on the tracker and
+Each indentation level is based on its immediate parent. These branches were
+created locally. The planning-document work unit remains on the tracker; each child
 include its actual size as overhead. Each child contains its task's behavior,
 tests, relevant documentation, and progress evidence.
 
@@ -200,7 +202,8 @@ test evidence, and pending work without replacing the repository PR template.
 
 ## Tasks
 
-All tasks are authorized for local implementation but remain pending.
+All tasks were authorized for local implementation. SS-06 remains open only for
+the manual native acceptance check and unavailable native review.
 Each task uses delegated direct implementation; the parent owns scope, checks,
 document/mirror updates, and delivery decisions.
 
@@ -272,6 +275,29 @@ document/mirror updates, and delivery decisions.
   - Rollback: remove feature documentation/examples without changing analysis behavior.
 
 ## Evidence ledger and recovery
+
+### SS-06 documentation and closure evidence
+
+- Base: `689d988`; source commit `cc708e66aae0a13c08a0295a27ff2132c07dd161`:
+  138 additions + 2 deletions across four Markdown files. The guide distinguishes
+  AST attribute reductions from scope/VM stacks and LR parser actions; it explains
+  real Consume/Reduce deltas, examples, caps, truncation, and API boundaries.
+- Documentation-only task: TDD RED/GREEN is not applicable. The writer observed
+  `make format-check` and `git diff --check` pass. Parent independently ran
+  `nix-shell --run 'make check'`, exit 0, log
+  `/tmp/semantic-stack-ss06-check-final.log`: Rust format/Clippy/tests, frontend
+  tests/types/build passed. Svelte check reported 0 errors and 0 warnings. Vite
+  retained its >500 kB chunk warning.
+- Browser verification README now uses the URL printed by `make web`, not a fixed
+  port. The exported browser smoke has no standalone Make runner and was not run;
+  parent manually checked equivalent mocked-IPC interactions in SS-05.
+- Native Tauri WebView click-through remains pending. Mocked IPC and real native
+  Rust DTO tests do not prove it. RDD assessment/preflight remained unavailable
+  (CLI exit 127); the candidate is due/unreviewed, with no inferred tier or grant.
+- Rollback boundary: these four Markdown files; removing the guide/index/link and
+  browser verification additions does not change compiler behavior. No remote
+  operation or PR was performed. SS-06 stays unchecked until its manual native
+  proof is observed. The 1,800-line total excludes tracking-document commits.
 
 ### SS-05 implementation evidence
 
@@ -411,9 +437,11 @@ continuing. Preserve conflicts rather than overwriting another feature's state.
 
 ## Next step
 
-Delivery strategy is defined and implementation is already authorized. Resume
-SS-01 after rechecking TDD/native review availability and reading back this document
-and its full mirror. Establish the local tracker and first child from the recorded
-dependency baseline while preserving unrelated dirty changes. Record the actual
-branch point, then follow task-by-task TDD and work-unit verification. No additional
-chain confirmation is needed; remote delivery remains a separate user decision.
+Run the manual native Tauri WebView demonstration for SS-06 and record its result;
+do not substitute mock IPC for it. The native review CLI is unavailable, so all
+local candidates remain due/unreviewed. Before remote delivery, obtain the
+necessary authority and resolve the over-budget SS-03 (460 lines) and SS-05
+(510 lines) slices with a valid cohesive split or explicit `size:exception`.
+No additional chain-choice confirmation is needed. Preserve the user's unrelated
+working-tree changes and resynchronize this document's full Engram mirror after
+any future status change.
