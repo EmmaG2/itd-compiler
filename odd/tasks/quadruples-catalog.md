@@ -27,5 +27,5 @@ Crear `CUADRUPLOS.md`, solicitado por el usuario, con las 31 operaciones propues
 - Reversión: retirar solamente `CUADRUPLOS.md` y este seguimiento.
 - Comprobación: `nix-shell --run 'make format-files FILES="CUADRUPLOS.md odd/tasks/quadruples-catalog.md"'` terminó con código 0; segunda pasada sin cambios. Recuento: 31 operaciones y 335 líneas en el catálogo.
 - Revisión de fuentes: sintaxis de negación y constructores, errores diferidos de literales, promociones numéricas, resto decimal/flotante y mutabilidad de campos confirmados. Ejemplos no ejecutados; `make check` omitido por alcance exclusivamente documental.
-- Entrega local: 363 líneas iniciales, por debajo de la previsión; ningún archivo de implementación modificado por esta tarea. Commit pendiente de registrar inmediatamente después de crearlo.
-- Siguiente paso: registrar commit y entregar el documento. Revisión nativa y espejo Engram siguen no disponibles; no se afirma aprobación.
+- Entrega local: commit `2bddad3` (`docs: document 31 proposed quadruple operations`), 366 líneas añadidas; ningún archivo de implementación modificado por esta tarea. Base de la unidad: `e565f64a7d043640aef6350d0e927058933be4d0`. Estrategia `ask-on-risk`, sin necesidad de cadena ni PR.
+- Siguiente paso: entregar el documento. Revisión nativa y espejo Engram siguen no disponibles; no se afirma aprobación. La implementación de esta IR queda fuera del alcance autorizado.
