@@ -6,6 +6,8 @@ node_modules/
 dist/
 apps/desktop/src-tauri/gen/
 .playwright-mcp/
+.atl/
+.codegraph/
 
 # Legacy Java compiler; the published project is Rust-only.
 /MIcompiladordejava/
