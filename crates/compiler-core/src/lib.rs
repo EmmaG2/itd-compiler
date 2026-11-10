@@ -1,3 +1,4 @@
+pub mod arm64;
 pub mod ast;
 pub mod bytecode;
 mod bytecode_validate;
@@ -6,6 +7,9 @@ pub mod lexer;
 mod linker;
 pub mod parser;
 pub mod project;
+pub mod quadruple;
+pub mod quadruple_lowering;
+pub mod quadruple_optimize;
 #[cfg(feature = "reference-interpreter")]
 mod reference;
 pub mod runtime;
@@ -39,7 +43,7 @@ pub struct RunResult {
 
 #[must_use]
 pub fn analyze(source: &str) -> AnalysisResult {
-    analyze_internal(source, None).0
+    analyze_internal(source, None, false).0
 }
 
 /// Capture semantic stack operations; syntax errors have no semantic trace.
@@ -48,12 +52,13 @@ pub fn analyze_with_trace(
     source: &str,
     event_limit: usize,
 ) -> (AnalysisResult, Option<semantic::SemanticTrace>) {
-    analyze_internal(source, Some(event_limit))
+    analyze_internal(source, Some(event_limit), false)
 }
 
 fn analyze_internal(
     source: &str,
     event_limit: Option<usize>,
+    quadruple_backend: bool,
 ) -> (AnalysisResult, Option<semantic::SemanticTrace>) {
     let mut sources = SourceMap::new();
     let source_id = sources.add("<memory>", source);
@@ -68,6 +73,8 @@ fn analyze_internal(
                 semantic::analyze_with_imports_and_trace(&parsed.program, &[], limit);
             trace = Some(captured);
             result
+        } else if quadruple_backend {
+            semantic::analyze_for_quadruples(&parsed.program)
         } else {
             analyze_semantics(&parsed.program)
         }
@@ -92,6 +99,69 @@ pub struct CompilationResult {
     pub sources: SourceMap,
     pub chunk: Option<bytecode::Chunk>,
     pub diagnostics: Vec<Diagnostic>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct QuadrupleCompilationResult {
+    pub sources: SourceMap,
+    pub program: Option<quadruple::QuadrupleProgram>,
+    pub diagnostics: Vec<Diagnostic>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Arm64CompilationResult {
+    pub assembly: Option<String>,
+    pub diagnostics: Vec<Diagnostic>,
+}
+
+/// Lower source to the independent ARM64-oriented quadruple IR without using the VM compiler.
+#[must_use]
+pub fn compile_quadruples(source: &str) -> QuadrupleCompilationResult {
+    let analysis = analyze_internal(source, None, true).0;
+    let mut diagnostics = analysis.diagnostics.clone();
+    let program = if diagnostics.iter().any(|d| d.severity == Severity::Error) {
+        None
+    } else if let Some(semantic) = analysis.semantic.as_ref() {
+        match quadruple_lowering::lower(&analysis.program, semantic) {
+            Ok(program) => Some(program),
+            Err(mut errors) => {
+                diagnostics.append(&mut errors);
+                None
+            }
+        }
+    } else {
+        None
+    };
+    QuadrupleCompilationResult {
+        sources: analysis.sources,
+        program,
+        diagnostics,
+    }
+}
+
+/// Emit Darwin ARM64 assembly only from validated quadruples.
+pub fn emit_arm64(program: &quadruple::QuadrupleProgram) -> Result<String, Diagnostic> {
+    arm64::emit(program)
+}
+
+/// Source convenience entrypoint; lowering remains the only source-to-IR path.
+pub fn compile_arm64(source: &str) -> Arm64CompilationResult {
+    let quadruples = compile_quadruples(source);
+    let mut diagnostics = quadruples.diagnostics;
+    let assembly = quadruples
+        .program
+        .as_ref()
+        .and_then(|program| match arm64::emit(program) {
+            Ok(assembly) => Some(assembly),
+            Err(diagnostic) => {
+                diagnostics.push(diagnostic);
+                None
+            }
+        });
+    Arm64CompilationResult {
+        assembly,
+        diagnostics,
+    }
 }
 
 #[must_use]

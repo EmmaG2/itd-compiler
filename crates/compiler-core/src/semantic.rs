@@ -110,6 +110,14 @@ pub fn analyze_with_imports(program: &Program, imports: &[ImportedSymbol]) -> Se
     Analyzer::new(imports).program(program).0
 }
 
+/// Analyze only for the ARM64-oriented quadruple backend. This opt-in mode
+/// admits the backend's explicitly supported call conversions and runtime
+/// primitive overloads without changing the VM/frontend semantic contract.
+#[must_use]
+pub fn analyze_for_quadruples(program: &Program) -> SemanticResult {
+    Analyzer::new_for_quadruples(&[]).program(program).0
+}
+
 /// Analyze using the same rules while capturing a bounded, replayable stack trace.
 #[must_use]
 pub fn analyze_with_imports_and_trace(
@@ -136,10 +144,19 @@ struct Analyzer {
     expected_return: Option<Type>,
     loop_depth: usize,
     current_class: Option<String>,
+    quadruple_backend: bool,
 }
 
 impl Analyzer {
     fn new(imports: &[ImportedSymbol]) -> Self {
+        Self::with_quadruple_backend(imports, false)
+    }
+
+    fn new_for_quadruples(imports: &[ImportedSymbol]) -> Self {
+        Self::with_quadruple_backend(imports, true)
+    }
+
+    fn with_quadruple_backend(imports: &[ImportedSymbol], quadruple_backend: bool) -> Self {
         let mut analyzer = Analyzer {
             stack: SemanticStack::default(),
             scopes: vec![HashMap::new()],
@@ -153,6 +170,7 @@ impl Analyzer {
             expected_return: None,
             loop_depth: 0,
             current_class: None,
+            quadruple_backend,
         };
         analyzer.declare(
             "print",
@@ -821,7 +839,23 @@ impl Analyzer {
                     self.check_arguments(&parameters, &argument_types, arguments, expression.span);
                     Type::Class(name)
                 } else if let Type::Function(parameters, result) = callee_type {
-                    self.check_arguments(&parameters, &argument_types, arguments, expression.span);
+                    if self.quadruple_backend
+                        && matches!(&callee.kind, ExprKind::Name(name) if name == "print" || name == "to_string")
+                    {
+                        self.check_quadruple_runtime_arguments(
+                            &callee.kind,
+                            &argument_types,
+                            arguments,
+                            expression.span,
+                        );
+                    } else {
+                        self.check_arguments(
+                            &parameters,
+                            &argument_types,
+                            arguments,
+                            expression.span,
+                        );
+                    }
                     *result
                 } else if callee_type == Type::Error {
                     Type::Error
@@ -908,6 +942,33 @@ impl Analyzer {
                     argument.span,
                 );
             }
+        }
+    }
+
+    fn check_quadruple_runtime_arguments(
+        &mut self,
+        callee: &ExprKind,
+        found: &[Type],
+        arguments: &[Expr],
+        span: Span,
+    ) {
+        if found.len() != 1 {
+            self.type_error("E2004", "cantidad de argumentos incorrecta", span);
+            return;
+        }
+        let allowed = matches!(
+            &found[0],
+            Type::Int | Type::Decimal | Type::Bool | Type::Str
+        );
+        if !allowed {
+            let ExprKind::Name(name) = callee else {
+                return;
+            };
+            self.type_error(
+                "E2005",
+                format!("argumento no compatible para {name}: {:?}", found[0]),
+                arguments[0].span,
+            );
         }
     }
 
@@ -1200,6 +1261,10 @@ impl Analyzer {
         }
         if *expected == Type::IntegerOrDecimal {
             return integer_rank(found).is_some() || *found == Type::Decimal;
+        }
+        if self.quadruple_backend && *expected == Type::Decimal && *found == Type::Int {
+            self.record_coercion(expression, Type::Decimal);
+            return true;
         }
         if integer_rank(found)
             .is_some_and(|from| integer_rank(expected).is_some_and(|to| from <= to))
