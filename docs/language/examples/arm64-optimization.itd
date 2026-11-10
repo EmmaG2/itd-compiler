@@ -1,0 +1,6 @@
+let a := 0.1dec;
+let b := 0.2dec;
+let c := 0.3dec;
+print(to_string(a + b + c));
+print(to_string(a + b * c));
+print(to_string((a + b) * c));
