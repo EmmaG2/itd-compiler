@@ -4,6 +4,7 @@ import {
   analyzeProject,
   cancelRun,
   commandErrorMessage,
+  inspectNative,
   openProject,
   runProject,
   runSource,
@@ -18,6 +19,7 @@ it('explains the missing desktop runtime for every native action', async () => {
     () => analyzeSource('', 'main.itd'),
     () => runSource('', 'main.itd', 'test'),
     () => cancelRun('test'),
+    () => inspectNative('', 'main.itd'),
     () => openProject('/project'),
     () => runProject('main', 'test'),
     () => analyzeProject('main'),
@@ -40,6 +42,42 @@ it('preserves native and JavaScript error details', () => {
     commandErrorMessage({ code: 'NO_PROJECT', message: 'Select a project' }),
   ).toBe('NO_PROJECT: Select a project')
   expect(commandErrorMessage(null)).toBe('Falló')
+})
+
+it('passes native inspection DTOs through IPC', async () => {
+  vi.stubGlobal('isTauri', true)
+  const inspection = {
+    quadruples: [
+      {
+        function: 'main',
+        operation: 'ADD',
+        arg1: '2',
+        arg2: '3',
+        result: 't0:i32',
+        valueType: 'i32',
+        location: {
+          file: 'lesson.itd',
+          start: 0,
+          end: 5,
+          line: 1,
+          column: 1,
+        },
+      },
+    ],
+    truncated: false,
+    assembly: '.globl _main',
+    diagnostics: [],
+  }
+  const invoke = vi.fn().mockResolvedValue(inspection)
+  vi.stubGlobal('window', { __TAURI_INTERNALS__: { invoke } })
+  await expect(inspectNative('2 + 3;', 'lesson.itd')).resolves.toEqual(
+    inspection,
+  )
+  expect(invoke).toHaveBeenCalledWith(
+    'inspect_native',
+    { source: '2 + 3;', virtualPath: 'lesson.itd' },
+    undefined,
+  )
 })
 
 it('preserves semantic trace deltas and absence across native IPC', async () => {

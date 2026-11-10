@@ -28,8 +28,10 @@ const MAX_TOKENS: usize = 20_000;
 const MAX_SYMBOLS: usize = 5_000;
 const MAX_AST_NODES: usize = 2_000;
 mod inspection;
+mod native_inspection;
 mod semantic_trace;
 use inspection::{BytecodeDto, bytecode_dto};
+use native_inspection::{NativeInspectionDto, native_inspection_dto};
 use semantic_trace::{SemanticTraceDto, trace_dto};
 
 #[derive(Default)]
@@ -146,6 +148,17 @@ struct ProjectDto {
 async fn analyze_source(source: String, virtual_path: String) -> Result<AnalysisDto, CommandError> {
     validate_source(&source, &virtual_path)?;
     tauri::async_runtime::spawn_blocking(move || inspect_source(&source, &virtual_path))
+        .await
+        .map_err(|_| internal_error())
+}
+
+#[tauri::command]
+async fn inspect_native(
+    source: String,
+    virtual_path: String,
+) -> Result<NativeInspectionDto, CommandError> {
+    validate_source(&source, &virtual_path)?;
+    tauri::async_runtime::spawn_blocking(move || native_inspection_dto(&source, &virtual_path))
         .await
         .map_err(|_| internal_error())
 }
@@ -967,6 +980,7 @@ pub fn run() {
         .manage(AppState::default())
         .invoke_handler(tauri::generate_handler![
             analyze_source,
+            inspect_native,
             run_source,
             cancel_run,
             open_project,

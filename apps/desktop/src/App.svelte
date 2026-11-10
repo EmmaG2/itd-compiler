@@ -11,11 +11,13 @@
   import Editor from './features/editor/Editor.svelte'
   import AstGraph from './features/ast/AstGraph.svelte'
   import BytecodeView from './features/bytecode/BytecodeView.svelte'
+  import NativeView from './features/bytecode/NativeView.svelte'
   import SemanticStack from './features/semantic-stack/SemanticStack.svelte'
   import { examples } from './features/examples/catalog'
   import {
     analyzeSource,
     cancelRun,
+    inspectNative,
     runSource,
     commandErrorMessage,
   } from '$lib/ipc/compiler'
@@ -25,6 +27,7 @@
     BytecodeDto,
     DiagnosticDto,
     LocationDto,
+    NativeInspectionDto,
     SymbolDto,
     TokenDto,
   } from '$lib/types/compiler'
@@ -38,6 +41,9 @@
   )
   let replaceDialog: HTMLDialogElement
   let bytecode = $state<BytecodeDto>({ rows: [], truncated: false })
+  let nativeInspection = $state<NativeInspectionDto | null>(null)
+  let nativeInspectionRevision = $state<number | null>(null)
+  let nativeBusy = $state(false)
   let virtualPath = $state('main.itd')
   let status = $state<Status>('ready')
   let diagnostics = $state<DiagnosticDto[]>([])
@@ -54,7 +60,10 @@
   let executionId = $state<string | null>(null)
   let revision = $state(0)
   let busy = $derived(
-    status === 'analyzing' || status === 'running' || executionId !== null,
+    status === 'analyzing' ||
+      status === 'running' ||
+      executionId !== null ||
+      nativeBusy,
   )
 
   function invalidate(value: string) {
@@ -67,6 +76,7 @@
     semanticAst = null
     semanticStack = null
     bytecode = { rows: [], truncated: false }
+    nativeInspectionRevision = null
     reveal = null
     output = strings.noOutput
     if (!busy) setStatus('ready')
@@ -134,6 +144,43 @@
         return
       }
       fail(error)
+    }
+  }
+  async function generateNative() {
+    if (busy) return
+    const requestRevision = revision
+    const requestPath = virtualPath
+    nativeBusy = true
+    try {
+      const result = await inspectNative(source, requestPath)
+      if (requestRevision !== revision || requestPath !== virtualPath) return
+      nativeInspection = result
+      nativeInspectionRevision = requestRevision
+      activeTab = 'native'
+    } catch (error: unknown) {
+      if (requestRevision !== revision || requestPath !== virtualPath) return
+      nativeInspection = {
+        quadruples: [],
+        truncated: false,
+        assembly: null,
+        diagnostics: [
+          {
+            code: 'NATIVE_INSPECTION',
+            severity: 'error',
+            message: commandErrorMessage(error),
+            location: {
+              file: requestPath,
+              start: 0,
+              end: 0,
+              line: 1,
+              column: 1,
+            },
+          },
+        ],
+      }
+      nativeInspectionRevision = requestRevision
+    } finally {
+      nativeBusy = false
     }
   }
   async function run() {
@@ -205,6 +252,9 @@
         >
         <Button variant="secondary" onclick={run} disabled={busy}
           ><Play />{strings.run}</Button
+        >
+        <Button variant="outline" onclick={generateNative} disabled={busy}
+          >{strings.generateArm64}</Button
         >
         <Button variant="outline" onclick={stop} disabled={!executionId}
           ><Square />{strings.stop}</Button
@@ -312,6 +362,7 @@
               >{strings.semanticStack}</Tabs.Trigger
             >
             <Tabs.Trigger value="bytecode">{strings.bytecode}</Tabs.Trigger>
+            <Tabs.Trigger value="native">{strings.nativeInspection}</Tabs.Trigger>
           </Tabs.List>
           <Tabs.Content value="semantic-stack">
             {#key semanticStack}
@@ -441,6 +492,17 @@
             class="h-[max(360px,calc(min(60vh,640px)-52px))] overflow-hidden rounded-md border"
           >
             <BytecodeView {bytecode} onSelect={navigate} />
+          </Tabs.Content>
+          <Tabs.Content
+            value="native"
+            class="h-[max(360px,calc(min(60vh,640px)-52px))] overflow-hidden rounded-md border"
+          >
+            <NativeView
+              inspection={nativeInspectionRevision === revision
+                ? nativeInspection
+                : null}
+              onSelect={navigate}
+            />
           </Tabs.Content>
         </Tabs.Root>
       </Card.Content>

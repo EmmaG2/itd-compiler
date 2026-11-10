@@ -91,3 +91,18 @@ export interface BytecodeDto {
   }[]
   truncated: boolean
 }
+
+export interface NativeInspectionDto {
+  quadruples: {
+    function: string
+    operation: string
+    arg1: string
+    arg2: string
+    result: string
+    valueType: string | null
+    location: LocationDto
+  }[]
+  truncated: boolean
+  assembly: string | null
+  diagnostics: DiagnosticDto[]
+}

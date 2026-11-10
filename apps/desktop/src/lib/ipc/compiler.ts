@@ -1,7 +1,12 @@
 import { invoke as tauriInvoke, isTauri } from '@tauri-apps/api/core'
 import { open } from '@tauri-apps/plugin-dialog'
 import strings from '../../locales/es.json'
-import type { AnalysisDto, ProjectDto, RunDto } from '$lib/types/compiler'
+import type {
+  AnalysisDto,
+  NativeInspectionDto,
+  ProjectDto,
+  RunDto,
+} from '$lib/types/compiler'
 
 import { ErrorWithCode } from '$lib/errors'
 
@@ -40,6 +45,8 @@ export const runSource = (
   virtualPath: string,
   executionId: string,
 ) => invoke<RunDto>('run_source', { source, virtualPath, executionId })
+export const inspectNative = (source: string, virtualPath: string) =>
+  invoke<NativeInspectionDto>('inspect_native', { source, virtualPath })
 export const cancelRun = (executionId: string) =>
   invoke('cancel_run', { executionId })
 export const openProject = (root: string) =>
