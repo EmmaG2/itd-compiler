@@ -2,9 +2,26 @@
 
 ## Propósito y estado
 
-Este documento propone una representación intermedia de tres direcciones para ITD mediante **31 operaciones**. Es un diseño: el compilador actual genera bytecode de pila desde el AST analizado; la VM lo ejecuta y el backend ARM64 lo transforma en ensamblador. Los cuádruplos descritos aquí todavía no están implementados.
+ITD implementa una representación intermedia de tres direcciones, tipada y validada, para el backend Darwin ARM64. El flujo nativo es `fuente → análisis semántico para cuádruplos → cuádruplos → optimización → ensamblador`; no pasa por bytecode ni ejecuta la VM. La API pública correspondiente es `compile_quadruples(source)`, `emit_arm64(program)` y `compile_arm64(source)`. Véase la [guía del backend Darwin ARM64](docs/language/arm64.md) para su alcance y uso.
 
-Se prefieren cuádruplos a triplos porque el resultado tiene un nombre explícito (`t1`, `t2`), independiente de la posición de la instrucción. Los triplos ahorran ese campo, pero referencian resultados por posición y complican la reorganización de instrucciones. No se propone mantener dos representaciones equivalentes.
+Las tablas didácticas de más abajo conservan la propuesta de 31 operaciones y el contrato general del lenguaje. **El inventario implementado está en la sección siguiente**: no todas las operaciones didácticas existen como variantes de la IR ni todas las variantes nativas tienen equivalente en la propuesta. Se prefieren cuádruplos a triplos porque el resultado tiene un nombre explícito (`t1`, `t2`), independiente de la posición de la instrucción. Los triplos ahorran ese campo, pero referencian resultados por posición y complican la reorganización de instrucciones. No se mantiene una segunda representación equivalente.
+
+## Inventario actual de la IR nativa
+
+Estas son **todas las 30 variantes** de `Operation` definidas en [`quadruple.rs`](crates/compiler-core/src/quadruple.rs). Las formas indican los campos reales de cada variante; `t` es un temporal tipado, `v` un `Operand`, `L` una etiqueta, `local` un slot resuelto y `call` un identificador de sitio de llamada. Cada `Quadruple` también lleva un `Span` fuente. El optimizador puede sustituir o quitar instrucciones, por lo que un programa concreto no necesariamente contiene todas las variantes.
+
+- **Aritmética binaria (6):** `Add { left: v, right: v, result: t }`, `Sub { … }`, `Mul { … }`, `Div { … }`, `Mod { … }`, `Pow { … }`. Suma, resta, producto, división, resto y potencia.
+- **Unarias (2):** `Neg { operand: v, result: t }`, `Not { operand: v, result: t }`. Negación numérica y lógica.
+- **Comparaciones (5):** `Eq { left: v, right: v, result: t }`, `Ne { … }`, `Lt { … }`, `Le { … }`, `Gt { … }`. Producen un temporal `bool`.
+- **Valores y locales (4):** `Copy { source: v, result: t }`, `LoadLocal { local, result: t }`, `StoreLocal { local, value: v }`, `I32ToF64 { source: v, result: t }`. Copia tipada, lectura/escritura de slot y conversión de entero a decimal.
+- **Control de flujo (3):** `Label(L)`, `Jump(L)`, `JumpIfFalse { condition: v, target: L }`. Destino y saltos condicional o incondicional.
+- **Llamadas (3):** `Param { call, index, value: v }`, `Call { call, target, result: Option<t> }`, `Return(Option<v>)`. Argumento por posición, invocación y retorno opcional.
+- **Miembros (5):** `GetField { owner: v, field, result: t }`, `SetField { owner: v, field, value: v }`, `GetStatic { static_, result: t }`, `SetStatic { static_, value: v }`, `BindMethod { receiver: v, method, result: t }`. Campos y métodos enlazados.
+- **Terminación (2):** `Halt`, `Trap(Diagnostic)`. Fin de la función principal y error diferido con diagnóstico.
+
+Los operandos reales son `I32`, `F64`, `Bool`, `String`, `Receiver`, `Parameter` y `Temporary`. Los tipos de valor de esta IR son `I32`, `F64`, `Bool`, `Str`, `Object`, `BoundMethod` y `Void`. `Call.target` distingue `Function`, `Constructor`, `Runtime` y `BoundMethod`; las firmas, clases, campos, estáticos y cadenas residen en la metadata de `QuadrupleProgram`, no son cuádruplos adicionales.
+
+**Diferencias con las tablas didácticas:** no existen variantes `Pos`, `Ge`, `JumpIfTrue` ni `Cast` genérico; el lowering representa esas formas con otras instrucciones o, si exceden el subconjunto nativo, las rechaza. En cambio, `LoadLocal`, `StoreLocal` e `I32ToF64` son variantes reales que las tablas generales no enumeran por separado. La presencia de `Mod` y `Pow` en la IR tampoco promete emisión ARM64 para sus versiones decimales: el emisor las rechaza. Véase [alcance ARM64](docs/language/arm64.md).
 
 ## Convenciones
 
@@ -12,7 +29,7 @@ Cada instrucción tiene la forma `(operación, argumento1, argumento2, resultado
 
 Los operandos distinguen constantes tipadas, temporales, símbolos resueltos, campos, clases, funciones y etiquetas. Los nombres legibles de las tablas representan identificadores internos: dos variables de scopes distintos no se confunden por tener el mismo nombre. Cada instrucción conserva su ubicación fuente (`Span`); los temporales conservan su tipo. Esa información no añade columnas al cuádruplo.
 
-`N` designa los tipos numéricos: `byte`, `short`, `int`, `long`, `decimal`, `float` y `double`. Los enteros usan 8, 16, 32 y 64 bits con signo. En operaciones binarias numéricas se aplican primero las coerciones autorizadas: ensanchamiento de enteros y promoción entero/decimal, excepto potencia mixta. Mezclar tipos binarios (`float`, `double`) con otros tipos requiere conversión explícita. Igualdad no utiliza esas promociones.
+En estas tablas, `N` describe el sistema numérico general del lenguaje. No debe leerse como el tipo del backend: la IR Darwin ARM64 solo representa `int` como `i32` con signo y `decimal` como `f64` IEEE-754, además de `bool`, `str`, objetos y métodos enlazados. El backend no convierte silenciosamente `byte`, `short`, `long`, `float` ni `double`; los rechaza.
 
 Los ejemplos de expresiones terminan en `;` porque son sentencias ITD válidas. Sus cuádruplos omiten la finalización del programa y muestran solo la operación relevante; las lecturas, conversiones y llamadas necesarias se detallan cuando afectan el significado. Los ejemplos de cada sección son independientes, salvo las referencias al contexto de objetos de la sección 25.
 
@@ -324,12 +341,12 @@ El argumento 1 es un diagnóstico con código, mensaje y ubicación, no un valor
 1. **Precedencia:** `let x := 2 + 3 * 4;` genera `(MUL, 3, 4, t1)`, `(ADD, 2, t1, t2)` y `(COPY, t2, —, x)`, en ese orden. El AST determina la agrupación; no se vuelve a analizar texto.
 2. **Cortocircuito:** para `A and B`, evaluar `A`, copiarlo a `t`, saltar a `L_end` si `t` es falso, evaluar `B`, copiarlo a `t` y emitir `LABEL L_end`. Para `or`, usar `JUMP_IF_TRUE`. `A` y `B` son metanotación de expresiones booleanas: no se generan operaciones ansiosas `AND`/`OR`.
 3. **Efectos y temporales:** una lectura cuyo valor deba sobrevivir a una llamada o asignación se captura antes de esa operación. Por ejemplo, en `x + change()`, conservar el valor original de `x` antes de llamar a `change`. No sustituir valores capturados por lecturas posteriores.
-4. **Tipos y errores:** reutilizar las resoluciones, tipos y coerciones del análisis semántico. Las operaciones numéricas conservan límites del tipo resultante; `decimal` no pasa por `f64`. No adelantar una operación que pueda fallar fuera de su rama ni convertir errores de ejecución en fallos incondicionales de compilación.
-5. **Estructura:** verificar etiquetas existentes y locales a cada función, tipos de operandos, temporales inicializados en todas las rutas de lectura, receptores, campos, aridad y grupos `PARAM`/`CALL`. Un temporal de unión de cortocircuito puede recibir valores en ramas distintas: esta propuesta no exige SSA.
+4. **Tipos y errores:** reutilizar las resoluciones, tipos y coerciones del análisis semántico. En la VM, `decimal` conserva representación decimal exacta y no pasa por `f64`; en el backend ARM64 opt-in, `decimal` **sí** se representa como `f64` IEEE-754, con sus puntos de redondeo y diferencias de resultado. Ambos flujos conservan las comprobaciones correspondientes a sus tipos. No adelantar una operación que pueda fallar fuera de su rama ni convertir errores de ejecución en fallos incondicionales de compilación.
+5. **Estructura:** verificar etiquetas existentes y locales a cada función, tipos de operandos, temporales inicializados en todas las rutas de lectura, receptores, campos, aridad y grupos `PARAM`/`CALL`. La propuesta didáctica no exige SSA; la IR nativa actual sí exige que cada índice temporal se defina una sola vez, mientras los `LocalSlot` mutables sirven de punto de unión entre ramas de cortocircuito.
 6. **Alcance:** declaraciones de módulos, clases y traits producen metadata y enlaces, no una operación por palabra de la gramática. Los inicializadores sí producen instrucciones. La indexación y `each` no son ejecutables actualmente; no se inventan operaciones para habilitarlos.
 
 ## Integración y referencias
 
-Una futura integración ejecutable podría usar `AST + semántica → cuádruplos → bytecode validado → VM / ARM64`. Esto permitiría reutilizar los backends, pero requiere implementar y comprobar una nueva etapa. Una vista educativa independiente sería menos invasiva, aunque duplicaría reglas de traducción y necesitaría pruebas de consistencia. Este documento no modifica ninguno de esos flujos ni promete equivalencia ya verificada.
+La integración ejecutable de ARM64 ya es independiente: `AST + semántica para cuádruplos → cuádruplos tipados y validados → optimización → ARM64`. La UI muestra la tabla de cuádruplos antes de optimizar y el ensamblador posterior. El bytecode validado y la VM siguen siendo el flujo predeterminado y no son una etapa del backend nativo; tampoco hay equivalencia total prometida entre ambos.
 
-Fuentes del contrato actual: [gramática](docs/language/grammar.ebnf), [tipos](docs/language/type-system.md), [objetos](docs/language/object-model.md), [bytecode](docs/language/bytecode.md) y [ARM64](docs/language/arm64.md). Evidencia de implementación: [AST](crates/compiler-core/src/ast.rs), [semántica](crates/compiler-core/src/semantic.rs), [generación de bytecode](crates/compiler-core/src/bytecode.rs) y [operaciones del runtime](crates/compiler-core/src/runtime.rs).
+Fuentes del contrato general: [gramática](docs/language/grammar.ebnf), [tipos](docs/language/type-system.md), [objetos](docs/language/object-model.md), [bytecode](docs/language/bytecode.md) y [guía ARM64](docs/language/arm64.md). Evidencia de implementación: [IR](crates/compiler-core/src/quadruple.rs), [lowering](crates/compiler-core/src/quadruple_lowering.rs), [optimización](crates/compiler-core/src/quadruple_optimize.rs) y [emisor](crates/compiler-core/src/arm64.rs).

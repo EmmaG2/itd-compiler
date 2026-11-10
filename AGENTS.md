@@ -121,6 +121,8 @@ Ejecuta las tareas desde la raíz y con el entorno definido en `shell.nix` activ
 | `make compile`          | Comprobar tipos y compilar el frontend.                                                       |
 | `make test`             | Ejecutar pruebas de todo el workspace Rust con todas las funciones opcionales y del frontend. |
 | `make test-core`        | Probar el compilador, incluida la comparación con el intérprete de referencia.                |
+| `make test-arm64`       | Ejecutar pruebas ARM64 ignoradas solo en Apple Silicon.                                       |
+| `make arm64-metrics`    | Imprimir métricas ARM64 estáticas y ensamblador del fixture decimal reproducible.             |
 | `make test-ui`          | Ejecutar las pruebas unitarias del frontend.                                                  |
 | `make benchmark`        | Comparar el rendimiento de la VM y el intérprete de referencia.                               |
 | `make lint`             | Ejecutar el análisis estático de Rust y comprobar los tipos del frontend.                     |
@@ -128,7 +130,11 @@ Ejecuta las tareas desde la raíz y con el entorno definido en `shell.nix` activ
 | `make format-check`     | Comprobar el formato sin modificar archivos.                                                  |
 | `make check`            | Ejecutar formato, análisis estático, pruebas y compilación del frontend.                      |
 
-`make check` no empaqueta la aplicación ni ejecuta la prueba de navegador. `make test-ui` tampoco sustituye una comprobación de la integración nativa. Actualmente no hay un objetivo para la prueba de navegador.
+Usá `make format-rust-files FILES="<archivos>"` para formatear una lista explícita de archivos Rust; falla si `FILES` está vacío.
+
+`make arm64-metrics` ejecuta solamente Cargo mediante Make y reporta el ensamblador literalmente; sus conteos son instrucciones estáticas emitidas, no instrucciones ejecutadas ni operandos dinámicos. El fixture usa el contrato de 30 variantes de `Operation`: la VM conserva `decimal` exacto y el backend ARM64 opt-in usa `f64` IEEE-754.
+
+`make check` no empaqueta la aplicación ni ejecuta la prueba de navegador. `make test-ui` tampoco sustituye una comprobación de la integración nativa. `make test-arm64` ejecuta pruebas ARM64 ignoradas solo en Apple Silicon. Actualmente no hay un objetivo para la prueba de navegador.
 
 ## Reglas de trabajo
 

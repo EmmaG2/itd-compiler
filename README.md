@@ -46,6 +46,7 @@ Ejecuta todas las tareas mediante `make` desde la raíz del repositorio.
 | `make compile`          | Comprobar tipos y compilar el frontend.                                     |
 | `make test`             | Ejecutar todas las pruebas del compilador y del frontend.                   |
 | `make test-core`        | Probar el compilador y comparar la VM con el intérprete de referencia.      |
+| `make test-arm64`       | Ejecutar las pruebas nativas ARM64 ignoradas (solo Apple Silicon).          |
 | `make test-ui`          | Ejecutar las pruebas unitarias del frontend.                                |
 | `make benchmark`        | Comparar el rendimiento de la VM y el intérprete de referencia.             |
 | `make lint`             | Ejecutar el análisis estático y la comprobación de tipos.                   |
@@ -77,4 +78,4 @@ Para comparar los árboles, analiza `let count := 2; let total := count + 0.5dec
 
 **Pila semántica** permite recorrer los atributos y reducciones reales del análisis: muestra la pila, los operandos consumidos, conversiones y ubicaciones. Es una inspección de tipos sobre el AST, distinta de la pila de ámbitos y de la VM. La captura está limitada a 4096 eventos sin detener el análisis. Consulte la [guía y demostración de la pila semántica](docs/language/semantic-stack.md).
 
-Detalles: [bytecode y API](docs/language/bytecode.md), [benchmark](docs/language/performance.md) y [verificación de la interfaz](apps/desktop/tests/README.md).
+Detalles: [bytecode y API](docs/language/bytecode.md), [cuádruplos](CUADRUPLOS.md), [backend Darwin ARM64](docs/language/arm64.md), [benchmark](docs/language/performance.md) y [verificación de la interfaz](apps/desktop/tests/README.md).
